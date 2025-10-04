@@ -1,0 +1,35 @@
+baseURL = 'https://example.org/'
+languageCode = 'en-us'
+title = '0x3nigma Blog'
+theme = 'nightfall'
+
+[params]
+user = "0x3nigma"           
+hostname = "localhost"
+sitedescription = 'Your website description'
+
+[params.author]
+name = "0x3nigma"
+email = "megaprime0207@gmail.com"
+
+[[params.social]]
+name = "Email"
+url = "mailto:megaprime0207@gmail.com"
+aria = "Send me an email"
+
+[[params.social]]
+name = "Github"
+url = "https://github.com/0x3nigma"
+aria = "My GitHub profile"
+
+[menu]
+  [[menu.header]]
+    name = "posts"
+    weight = 10
+    url = "/posts/"
+
+  [[menu.header]]
+    name = "about" 
+    weight = 20
+    url = "/about/"
+
