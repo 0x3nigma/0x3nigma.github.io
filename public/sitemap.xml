@@ -8,13 +8,17 @@
     <loc>http://localhost:1313/about/</loc>
     <lastmod>2025-10-04T16:13:15+05:30</lastmod>
   </url><url>
+    <loc>http://localhost:1313/categories/</loc>
+    <lastmod>2025-10-04T15:42:29+05:30</lastmod>
+  </url><url>
     <loc>http://localhost:1313/posts/hello-world/</loc>
     <lastmod>2025-10-04T15:42:29+05:30</lastmod>
   </url><url>
     <loc>http://localhost:1313/posts/</loc>
     <lastmod>2025-10-04T15:42:29+05:30</lastmod>
   </url><url>
-    <loc>http://localhost:1313/categories/</loc>
+    <loc>http://localhost:1313/categories/python/</loc>
+    <lastmod>2025-10-04T15:42:29+05:30</lastmod>
   </url><url>
     <loc>http://localhost:1313/tags/</loc>
   </url>

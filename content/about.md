@@ -4,5 +4,5 @@ draft = false
 title = 'About'
 +++
 
-
-Its me ...
+Machines mirror the human mind — predictable yet chaotic.
+This blog is my attempt to map that chaos, one exploit at a time.

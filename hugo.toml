@@ -33,3 +33,8 @@ aria = "My GitHub profile"
     weight = 20
     url = "/about/"
 
+  [[menu.header]]
+    name = "categories"
+    weight = 20
+    url = "/categories/"
+
