@@ -25,12 +25,12 @@ class Server():
         self.server = socket.socket(self.addr, self.proto)
 ```
 We will be using the socket library provided by python.
-**Sockets**: Sockets are endpoints of a network connection. It resides in the layer 4 or the transport layer of an OSI model. We can define a socket using a tuple of 4 elements which are : 
+**Sockets**: Sockets are endpoints of a network connection. It resides in the layer 4 or the transport layer of an OSI model. We can define a socket using a tuple of 4 elements which are :
 (local_ip, local_port, remote_ip, remote_port)
-local_ip -> Server's ip address
-local_port -> Server's port
-remote_ip -> Client's ip address
-remote_port -> Client's port
+1) local_ip -> Server's ip address
+2) local_port -> Server's port
+3) remote_ip -> Client's ip address
+4) remote_port -> Client's port
 
 In the above code we are creating a listening socket using `socket.socket()` and passing the parameters `socket.AF_INET` and `socket.SOCK_STREAM` . `socket.AF_INET` tells the OS that this socket will be using the IPv4 addressing scheme and `socket.SOCK_STREAM` tells the os that we will be using the TCP protocol. If you want to use the UDP protocol then you can replace `socket.SOCK_STREAM` with `socket.SOCK_DGRAM`.
 
