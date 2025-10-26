@@ -48,7 +48,7 @@ Now we will create a method to start the server:
         except Exception as e:
             print(f"Server could not be started {e}")
 ```
-We will first bind the above socket to an IP and PORT using `self.server.bind((self.IP, self.PORT))` . Then we will call the `listen()` function which will listen for incoming client connections and store them in a  backlog queue. When this queue fills up we our OS will drop any further new connections. We can set the limit to how many pending request that can be handled by passing the number to the listen function i.e. `listen(5)`.
+We will first bind the above socket to an IP and PORT using `self.server.bind((self.IP, self.PORT))` . Then we will call the `listen()` function which will listen for incoming client connections and store them in a  backlog queue. When this queue fills up the OS will drop any further new connections. We can set the limit to how many pending request that can be handled by passing the number to the listen function i.e. `listen(5)`.
 
 Here's what happens under the hood:
 1) Client sends a SYN packet to our server
