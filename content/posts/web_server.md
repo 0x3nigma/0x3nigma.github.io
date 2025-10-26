@@ -114,26 +114,83 @@ The method for adding the endpoints:
 ```
 
 #### Step 5:
-We will now add a method for handling the clients. It checks the incoming request against all registered endpoints. If it finds a match, it calls the handler, sends the response, and breaks out of the loop. If the loop finishes without finding any matches, it then sends a single 404 Not Found response.
+We will now add a method for handling the clients.
+
+First we will iterate and get all the incoming data until we find `\r\n\r\n` since that is the indication that the header section is finished.
+Then we will read the header `Content-Length` to get the size of the body section and we will check how much of it is already recieved.Then we will get the rest of the body.
+
+It will then check the incoming request against all registered endpoints. If it finds a match, it calls the handler, sends the response, and breaks out of the loop. If the loop finishes without finding any matches, it then sends a single 404 Not Found response.
+
 ```python
     def handle_client(self, conn):
-        request = conn.recv(1024).decode()
-        response_sent = False
-        for endpoint_key, handler in self.endpoints.items():
-            if(request.startswith(endpoint_key)):
-                response = handler(request)
-                conn.send(self.create_http_response(response).encode())
-                response_sent = True
-                break
-
-        if not response_sent:
-            response = {
-                "status": 404,
-                "status_info": "Not Found",
-                "headers": {},
-                "body": ""
+        try:
+            # Read headers first
+            data = b""
+            while b"\r\n\r\n" not in data:
+                chunk = conn.recv(1024)
+                if not chunk:
+                    break
+                data += chunk
+            
+            if not data:
+                return
+                
+            # Split headers and potential body
+            headers_end = data.find(b"\r\n\r\n")
+            headers_part = data[:headers_end]
+            body_data = data[headers_end + 4:]
+        
+            # Parse headers to get Content-Length if present
+            headers = headers_part.decode('utf-8').split('\r\n')
+            content_length = 0
+            
+            for header in headers:
+                if header.lower().startswith('content-length:'):
+                    content_length = int(header.split(':')[1].strip())
+                    break
+            
+            # Read remaining body data if Content-Length is specified
+            while len(body_data) < content_length:
+                chunk = conn.recv(1024)
+                if not chunk:
+                    break
+                body_data += chunk
+            
+            # Reconstruct full request
+            full_request = headers_part + b"\r\n\r\n" + body_data
+            request = full_request.decode('utf-8')
+            
+            response_sent = False
+            for endpoint_key, handler in self.endpoints.items():
+                if request.startswith(endpoint_key):
+                    response = handler(request)
+                    conn.send(self.create_http_response(response).encode())
+                    response_sent = True
+                    break
+    
+            if not response_sent:
+                response = {
+                    "status": 404,
+                    "status_info": "Not Found",
+                    "headers": {'Content-Type': 'text/plain', 'Content-Length': '9'},
+                    "body": "Not Found"
                 }
-            conn.send(self.create_http_response(response).encode())
+                conn.send(self.create_http_response(response).encode())
+                
+        except Exception as e:
+            print(f"Error handling client: {e}")
+            try:
+                error_response = {
+                    "status": 500,
+                    "status_info": "Internal Server Error",
+                    "headers": {'Content-Type': 'text/plain', 'Content-Length': '21'},
+                    "body": "Internal Server Error"
+                }
+                conn.send(self.create_http_response(error_response).encode())
+            except:
+                pass
+
+
 ```
 
 And then add this function to the `start_server()` function to handle the clients: We will put it inside a `While True` loop such that our server doesnot close after handling only a single connection and accepts new connections from the queue.
@@ -187,23 +244,73 @@ class Server():
         self.server = socket.socket(self.addr, self.proto)
 
     def handle_client(self, conn):
-        request = conn.recv(1024).decode()
-        response_sent = False
-        for endpoint_key, handler in self.endpoints.items():
-            if(request.startswith(endpoint_key)):
-                response = handler(request)
-                conn.send(self.create_http_response(response).encode())
-                response_sent = True
-                break
-
-        if not response_sent:
-            response = {
-                "status": 404,
-                "status_info": "Not Found",
-                "headers": {},
-                "body": ""
+        try:
+            # Read headers first
+            data = b""
+            while b"\r\n\r\n" not in data:
+                chunk = conn.recv(1024)
+                if not chunk:
+                    break
+                data += chunk
+            
+            if not data:
+                return
+                
+            # Split headers and potential body
+            headers_end = data.find(b"\r\n\r\n")
+            headers_part = data[:headers_end]
+            body_data = data[headers_end + 4:]
+        
+            # Parse headers to get Content-Length if present
+            headers = headers_part.decode('utf-8').split('\r\n')
+            content_length = 0
+            
+            for header in headers:
+                if header.lower().startswith('content-length:'):
+                    content_length = int(header.split(':')[1].strip())
+                    break
+            
+            # Read remaining body data if Content-Length is specified
+            while len(body_data) < content_length:
+                chunk = conn.recv(1024)
+                if not chunk:
+                    break
+                body_data += chunk
+            
+            # Reconstruct full request
+            full_request = headers_part + b"\r\n\r\n" + body_data
+            request = full_request.decode('utf-8')
+            
+            response_sent = False
+            for endpoint_key, handler in self.endpoints.items():
+                if request.startswith(endpoint_key):
+                    response = handler(request)
+                    conn.send(self.create_http_response(response).encode())
+                    response_sent = True
+                    break
+    
+            if not response_sent:
+                response = {
+                    "status": 404,
+                    "status_info": "Not Found",
+                    "headers": {'Content-Type': 'text/plain', 'Content-Length': '9'},
+                    "body": "Not Found"
                 }
-            conn.send(self.create_http_response(response).encode())
+                conn.send(self.create_http_response(response).encode())
+                
+        except Exception as e:
+            print(f"Error handling client: {e}")
+            try:
+                error_response = {
+                    "status": 500,
+                    "status_info": "Internal Server Error",
+                    "headers": {'Content-Type': 'text/plain', 'Content-Length': '21'},
+                    "body": "Internal Server Error"
+                }
+                conn.send(self.create_http_response(error_response).encode())
+            except:
+                pass
+
 
     def add_endpoint(self, path, method = "GET", handler=None):
         key = f"{method} {path}"
@@ -255,7 +362,7 @@ def echoHandler(request):
     msg = {
         "status": 200,
         "status_info": "OK",
-        "headers": {'Content-Length': str(len(echo_str)), 'Content-Type': "text/plain"},
+        "headers": {'Content-Length': str(len(echo_str.encode())), 'Content-Type': "text/plain"},
         "body": echo_str
     }
 
@@ -263,7 +370,7 @@ def echoHandler(request):
 
 if __name__ == "__main__":
     server = Server("127.0.0.1", 40000)
-    server.add_endpoint("/echo", handler=echoHandler)
+    server.add_endpoint("/echo/", handler=echoHandler)
     server.start_server()
 
 ```
