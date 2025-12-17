@@ -80,12 +80,12 @@ Posts | 0x3nigma
   <div role="list">
     
       <div class="postListItem" role="listitem">
-        <a class="postListLink" href="http://localhost:1313/posts/hello-world/">
+        <a class="postListLink" href="http://localhost:1313/posts/picoctf_handoff/">
           <div class="postHeader">
-            <span class="postTitle">Hello World</span>
+            <span class="postTitle">Handoff</span>
             
             
-            <time class="postDate" datetime="2025-10-04">2025-10-04</time>
+            <time class="postDate" datetime="2025-12-16">2025-12-16</time>
           </div>
           
           
@@ -93,13 +93,49 @@ Posts | 0x3nigma
           
           
           <div class="readingTime">
-            reading time: 1 minute
+            reading time: 4 minutes
           </div>
           
         </a>
         <div class="postExcerpt">
-          <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>print(<span style="color:#e6db74">&#34;Hello World&#34;</span>)
-</span></span></code></pre></div>
+          <h4 id="analysis">Analysis:</h4>
+<p>In this challenge we are provided with the source code and the binary.</p>
+<h5 id="step-1">Step 1:</h5>
+<p>We will first check the protections with checksec:</p>
+<p><img src="/Images/checksec_handoff.png" alt="alt"></p>
+<p>From the above output we can see a few things:</p>
+<ol>
+<li>That the stack of the binary is executable</li>
+<li>There is no protection against buffer overflow since it lacks a stack canary.</li>
+</ol>
+<p>From the above observations we can infer that we can inject and execute a shellcode. Now lets look at the source code:</p>
+        </div>
+      </div>
+    
+      <div class="postListItem" role="listitem">
+        <a class="postListLink" href="http://localhost:1313/posts/web_server/">
+          <div class="postHeader">
+            <span class="postTitle">Building a Web Server from Scratch in Python</span>
+            
+            
+            <time class="postDate" datetime="2025-10-20">2025-10-20</time>
+          </div>
+          
+          
+          
+          
+          
+          <div class="readingTime">
+            reading time: 7 minutes
+          </div>
+          
+        </a>
+        <div class="postExcerpt">
+          <p>I am trying to learn how a web server like nginx work. So I thought of making one myself because the best way to learn something is making it yourself. This will be a multipart series.
+In this first part, we&rsquo;ll build a simple, single-threaded server that can handle basic HTTP requests and even has a custom echo endpoint.</p>
+<h2 id="creating-the-server">Creating the server</h2>
+<h4 id="step-1">Step 1:</h4>
+<p>We will first create a class in python and name it Server. This Server class will contain all the functionalities of our server.</p>
         </div>
       </div>
     

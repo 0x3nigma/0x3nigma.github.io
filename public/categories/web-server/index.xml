@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>Python on 0x3nigma Blog</title>
-    <link>http://localhost:1313/categories/python/</link>
-    <description>Recent content in Python on 0x3nigma Blog</description>
+    <title>Web Server on 0x3nigma Blog</title>
+    <link>http://localhost:1313/categories/web-server/</link>
+    <description>Recent content in Web Server on 0x3nigma Blog</description>
     <generator>Hugo</generator>
     <language>en-us</language>
     <managingEditor>megaprime0207@gmail.com (0x3nigma)</managingEditor>
     <webMaster>megaprime0207@gmail.com (0x3nigma)</webMaster>
     <lastBuildDate>Mon, 20 Oct 2025 09:45:15 +0530</lastBuildDate>
-    <atom:link href="http://localhost:1313/categories/python/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="http://localhost:1313/categories/web-server/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>Building a Web Server from Scratch in Python</title>
       <link>http://localhost:1313/posts/web_server/</link>

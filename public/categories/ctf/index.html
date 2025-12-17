@@ -3,7 +3,7 @@
 
 <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
     <title>
-  Categories | 0x3nigma
+  Ctf | 0x3nigma
 </title>
 
     <meta http-equiv="content-type" content="text/html; charset=utf-8">
@@ -13,9 +13,9 @@
 <meta name="generator" content="Hugo 0.151.0">
 
 
-<link rel="canonical" href="http://localhost:1313/categories/" >
-  <link href="http://localhost:1313/categories/index.xml" rel="alternate" type="application/rss+xml" title="0x3nigma Blog" >
-  <link href="http://localhost:1313/categories/index.xml" rel="feed" type="application/rss+xml" title="0x3nigma Blog" >
+<link rel="canonical" href="http://localhost:1313/categories/ctf/" >
+  <link href="http://localhost:1313/categories/ctf/index.xml" rel="alternate" type="application/rss+xml" title="0x3nigma Blog" >
+  <link href="http://localhost:1313/categories/ctf/index.xml" rel="feed" type="application/rss+xml" title="0x3nigma Blog" >
 
 
 
@@ -68,7 +68,7 @@
                 
 <div>
   <div class="listHeader">
-    <h1>Categories</h1>
+    <h1>Ctf</h1>
   </div>
 
   
@@ -76,59 +76,47 @@
   
   
 
+  <div role="list">
+    
+      <div class="postListItem" role="listitem">
+        <a class="postListLink" href="http://localhost:1313/posts/picoctf_handoff/">
+          <div class="postHeader">
+            <span class="postTitle">Handoff</span>
+            
+            
+            <time class="postDate" datetime="2025-12-16">2025-12-16</time>
+          </div>
+
+          
+          
+          
+          
+          
+          <div class="readingTime">
+            reading time: 4 minutes
+          </div>
+          
+        </a>
+
+        <div class="postExcerpt">
+          <h4 id="analysis">Analysis:</h4>
+<p>In this challenge we are provided with the source code and the binary.</p>
+<h5 id="step-1">Step 1:</h5>
+<p>We will first check the protections with checksec:</p>
+<p><img src="/Images/checksec_handoff.png" alt="alt"></p>
+<p>From the above output we can see a few things:</p>
+<ol>
+<li>That the stack of the binary is executable</li>
+<li>There is no protection against buffer overflow since it lacks a stack canary.</li>
+</ol>
+<p>From the above observations we can infer that we can inject and execute a shellcode. Now lets look at the source code:</p>
+        </div>
+      </div>
+    
+  </div>
+
   
-    <div role="list">
-      
-        <div class="postListItem" role="listitem">
-          <a class="postListLink" href="http://localhost:1313/categories/binary-exploitation/">
-            <div class="postHeader">
-              <span class="postTitle">binary exploitation</span>
-              <span class="postDate">(1)</span>
-            </div>
-          </a>
-          <div class="postExcerpt">
-            <p>posts with term: binary exploitation</p>
-          </div>
-        </div>
-      
-        <div class="postListItem" role="listitem">
-          <a class="postListLink" href="http://localhost:1313/categories/picoctf/">
-            <div class="postHeader">
-              <span class="postTitle">picoctf</span>
-              <span class="postDate">(1)</span>
-            </div>
-          </a>
-          <div class="postExcerpt">
-            <p>posts with term: picoctf</p>
-          </div>
-        </div>
-      
-        <div class="postListItem" role="listitem">
-          <a class="postListLink" href="http://localhost:1313/categories/python/">
-            <div class="postHeader">
-              <span class="postTitle">python</span>
-              <span class="postDate">(1)</span>
-            </div>
-          </a>
-          <div class="postExcerpt">
-            <p>posts with term: python</p>
-          </div>
-        </div>
-      
-        <div class="postListItem" role="listitem">
-          <a class="postListLink" href="http://localhost:1313/categories/web-server/">
-            <div class="postHeader">
-              <span class="postTitle">web server</span>
-              <span class="postDate">(1)</span>
-            </div>
-          </a>
-          <div class="postExcerpt">
-            <p>posts with term: web server</p>
-          </div>
-        </div>
-      
-    </div>
-  
+
 </div>
 
             </main>

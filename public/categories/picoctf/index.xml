@@ -1,28 +1,21 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>Posts on 0x3nigma Blog</title>
-    <link>http://localhost:1313/posts/</link>
-    <description>Recent content in Posts on 0x3nigma Blog</description>
+    <title>Picoctf on 0x3nigma Blog</title>
+    <link>http://localhost:1313/categories/picoctf/</link>
+    <description>Recent content in Picoctf on 0x3nigma Blog</description>
     <generator>Hugo</generator>
     <language>en-us</language>
     <managingEditor>megaprime0207@gmail.com (0x3nigma)</managingEditor>
     <webMaster>megaprime0207@gmail.com (0x3nigma)</webMaster>
     <lastBuildDate>Tue, 16 Dec 2025 17:19:27 +0530</lastBuildDate>
-    <atom:link href="http://localhost:1313/posts/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="http://localhost:1313/categories/picoctf/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>Handoff</title>
       <link>http://localhost:1313/posts/picoctf_handoff/</link>
       <pubDate>Tue, 16 Dec 2025 17:19:27 +0530</pubDate><author>megaprime0207@gmail.com (0x3nigma)</author>
       <guid>http://localhost:1313/posts/picoctf_handoff/</guid>
       <description>&lt;h4 id=&#34;analysis&#34;&gt;Analysis:&lt;/h4&gt;&#xA;&lt;p&gt;In this challenge we are provided with the source code and the binary.&lt;/p&gt;&#xA;&lt;h5 id=&#34;step-1&#34;&gt;Step 1:&lt;/h5&gt;&#xA;&lt;p&gt;We will first check the protections with checksec:&lt;/p&gt;&#xA;&lt;p&gt;&lt;img src=&#34;http://localhost:1313/Images/checksec_handoff.png&#34; alt=&#34;alt&#34;&gt;&lt;/p&gt;&#xA;&lt;p&gt;From the above output we can see a few things:&lt;/p&gt;&#xA;&lt;ol&gt;&#xA;&lt;li&gt;That the stack of the binary is executable&lt;/li&gt;&#xA;&lt;li&gt;There is no protection against buffer overflow since it lacks a stack canary.&lt;/li&gt;&#xA;&lt;/ol&gt;&#xA;&lt;p&gt;From the above observations we can infer that we can inject and execute a shellcode. Now lets look at the source code:&lt;/p&gt;</description>
-    </item>
-    <item>
-      <title>Building a Web Server from Scratch in Python</title>
-      <link>http://localhost:1313/posts/web_server/</link>
-      <pubDate>Mon, 20 Oct 2025 09:45:15 +0530</pubDate><author>megaprime0207@gmail.com (0x3nigma)</author>
-      <guid>http://localhost:1313/posts/web_server/</guid>
-      <description>&lt;p&gt;I am trying to learn how a web server like nginx work. So I thought of making one myself because the best way to learn something is making it yourself. This will be a multipart series.&#xA;In this first part, we&amp;rsquo;ll build a simple, single-threaded server that can handle basic HTTP requests and even has a custom echo endpoint.&lt;/p&gt;&#xA;&lt;h2 id=&#34;creating-the-server&#34;&gt;Creating the server&lt;/h2&gt;&#xA;&lt;h4 id=&#34;step-1&#34;&gt;Step 1:&lt;/h4&gt;&#xA;&lt;p&gt;We will first create a class in python and name it Server. This Server class will contain all the functionalities of our server.&lt;/p&gt;</description>
     </item>
   </channel>
 </rss>

