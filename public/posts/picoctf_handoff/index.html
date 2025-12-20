@@ -218,11 +218,11 @@ Handoff | 0x3nigma
 </span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>	<span style="color:#a6e22e">vuln</span>();
 </span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
 </span></span><span style="display:flex;"><span>}
-</span></span></code></pre></div><p>Analysing the source code we can see that there is a buffer overflow vulnerability in choice number 3 , that is the <code>feedback</code> buffer and choice number 1 that is <code>name</code> buffer since both of them can hold only 8 bytes but <code>NAME_LEN</code> is 32 bytes.</p>
+</span></span></code></pre></div><p>Analyzing the source code we can see that there is a buffer overflow vulnerability in choice number 3 , that is the <code>feedback</code> buffer and choice number 1 that is <code>name</code> buffer since both of them can hold only 8 bytes but <code>NAME_LEN</code> is 32 bytes.</p>
 <p>Now opening the binary in ghidra:</p>
 <p><img src="/Images/ghidra_handoff.png" alt="alt"></p>
 <p>we can see the name buffer is 0x2e8(744) bytes below return address and hence we can&rsquo;t use this buffer to overwrite the return address since we can insert only 32 bytes into this buffer. A much better alternative will be to use the feedback buffer which is 0x14(20) bytes below the return address and hence can be used to overwrite the return address.
-But since the feedback buffer can hold only 32 bytes and also has a null byte(<code>feedback[7]=0</code>) we can&rsquo;t use this buffer to insert our shellcode.</p>
+But since the feedback buffer can hold only 32 bytes and also has a null byte(<code>feedback[7]=0</code>) we can&rsquo;t use this buffer to insert our shellcode as the null byte forces a premature string termination, which makes our shellcode unreliable.</p>
 <p>Hence to insert our shellcode we will be using the msg buffer which can hold 64 bytes.
 Now using ROPgadget tool we tried to find a usable gadget for this shellcode execution. We found out a cool gadget :</p>
 <pre><code>0x0040116c : jmp rax

