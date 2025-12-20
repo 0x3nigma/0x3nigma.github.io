@@ -2,6 +2,7 @@
 date = '2025-12-20T12:37:39+05:30'
 draft = false
 title = 'Heap2'
+categories = ["picoctf", "binary exploitation"]
 +++
 
 ### Analysis:
