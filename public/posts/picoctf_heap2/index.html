@@ -10,7 +10,7 @@ Heap2 | 0x3nigma
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="Your website description">
 
-<meta name="generator" content="Hugo 0.151.0">
+<meta name="generator" content="Hugo 0.165.0">
 
 
 <link rel="canonical" href="http://localhost:1313/posts/picoctf_heap2/" >
@@ -106,6 +106,12 @@ Heap2 | 0x3nigma
             
             
             
+                
+<dt>categories</dt>
+<dd><span></span>
+    <a href="/categories/picoctf/">Picoctf</a><span></span>
+    <a href="/categories/binary-exploitation/">Binary Exploitation</a></dd>
+            
             
                 <dt>published</dt>
                  
@@ -125,19 +131,19 @@ Heap2 | 0x3nigma
 <p><img src="/Images/checksec_heap2.png" alt="alt"></p>
 <p>From the above result we can see that this is a 64 bit binary with no stack canary and no PIE. But since the challenge is named as heap2 I don&rsquo;t think there will be much to do with the stack.</p>
 <p>Now looking at the source code:</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
 </span></span></span><span style="display:flex;"><span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdlib.h&gt;</span><span style="color:#75715e">
 </span></span></span><span style="display:flex;"><span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;string.h&gt;</span><span style="color:#75715e">
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span><span style="color:#75715e">#define FLAGSIZE_MAX 64
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span><span style="color:#66d9ef">int</span> num_allocs;
 </span></span><span style="display:flex;"><span><span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>x;
 </span></span><span style="display:flex;"><span><span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>input_data;
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">win</span>() {
 </span></span><span style="display:flex;"><span>    <span style="color:#75715e">// Print flag
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#66d9ef">char</span> buf[FLAGSIZE_MAX];
+</span></span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">char</span> buf[FLAGSIZE_MAX];
 </span></span><span style="display:flex;"><span>    FILE <span style="color:#f92672">*</span>fd <span style="color:#f92672">=</span> <span style="color:#a6e22e">fopen</span>(<span style="color:#e6db74">&#34;flag.txt&#34;</span>, <span style="color:#e6db74">&#34;r&#34;</span>);
 </span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">fgets</span>(buf, FLAGSIZE_MAX, fd);
 </span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">printf</span>(<span style="color:#e6db74">&#34;%s</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, buf);
@@ -185,7 +191,7 @@ Heap2 | 0x3nigma
 </span></span><span style="display:flex;"><span><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span>(<span style="color:#66d9ef">void</span>) {
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span>    <span style="color:#75715e">// Setup
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#a6e22e">init</span>();
+</span></span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">init</span>();
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">int</span> choice;
 </span></span><span style="display:flex;"><span>
@@ -196,23 +202,23 @@ Heap2 | 0x3nigma
 </span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">switch</span> (choice) {
 </span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">case</span> <span style="color:#ae81ff">1</span><span style="color:#f92672">:</span>
 </span></span><span style="display:flex;"><span>            <span style="color:#75715e">// print heap
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>            <span style="color:#a6e22e">print_heap</span>();
+</span></span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">print_heap</span>();
 </span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">break</span>;
 </span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">case</span> <span style="color:#ae81ff">2</span><span style="color:#f92672">:</span>
 </span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">write_buffer</span>();
 </span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">break</span>;
 </span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">case</span> <span style="color:#ae81ff">3</span><span style="color:#f92672">:</span>
 </span></span><span style="display:flex;"><span>            <span style="color:#75715e">// print x
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>            <span style="color:#a6e22e">printf</span>(<span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n\n</span><span style="color:#e6db74">x = %s</span><span style="color:#ae81ff">\n\n</span><span style="color:#e6db74">&#34;</span>, x);
+</span></span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">printf</span>(<span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n\n</span><span style="color:#e6db74">x = %s</span><span style="color:#ae81ff">\n\n</span><span style="color:#e6db74">&#34;</span>, x);
 </span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">fflush</span>(stdout);
 </span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">break</span>;
 </span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">case</span> <span style="color:#ae81ff">4</span><span style="color:#f92672">:</span>
 </span></span><span style="display:flex;"><span>            <span style="color:#75715e">// Check for win condition
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>            <span style="color:#a6e22e">check_win</span>();
+</span></span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">check_win</span>();
 </span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">break</span>;
 </span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">case</span> <span style="color:#ae81ff">5</span><span style="color:#f92672">:</span>
 </span></span><span style="display:flex;"><span>            <span style="color:#75715e">// exit
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>            <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
+</span></span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
 </span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">default</span><span style="color:#f92672">:</span>
 </span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">printf</span>(<span style="color:#e6db74">&#34;Invalid choice</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
 </span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">fflush</span>(stdout);
@@ -221,7 +227,7 @@ Heap2 | 0x3nigma
 </span></span><span style="display:flex;"><span>}
 </span></span></code></pre></div><p>From the above code we can see that the <code>win</code> function prints the flag but there is no direct method of calling it.
 However if we give a closer look at the <code>check_win()</code> function:</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">check_win</span>() { 
 </span></span><span style="display:flex;"><span>	((<span style="color:#66d9ef">void</span> (<span style="color:#f92672">*</span>)())<span style="color:#f92672">*</span>(<span style="color:#66d9ef">int</span><span style="color:#f92672">*</span>)x)();
 </span></span><span style="display:flex;"><span>}
@@ -256,7 +262,7 @@ Running the program and printing the heap we get :</p>
 </ol>
 <p>Here is the exploit script:</p>
 <h4 id="script">Script:</h4>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
 </span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> argparse
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span>parser <span style="color:#f92672">=</span> argparse<span style="color:#f92672">.</span>ArgumentParser()
@@ -292,7 +298,7 @@ Running the program and printing the heap we get :</p>
         <footer class="footer">
     
         <span>
-            © 2025 0x3nigma, Built with
+            © 2026 0x3nigma, Built with
             <a href="https://gohugo.io" class="footerLink">Hugo</a> and
             <a href="https://github.com/LordMathis/hugo-theme-nightfall" class="footerLink">Nightfall</a> theme
         </span>

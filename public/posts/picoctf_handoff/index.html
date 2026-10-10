@@ -10,7 +10,7 @@ Handoff | 0x3nigma
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="Your website description">
 
-<meta name="generator" content="Hugo 0.151.0">
+<meta name="generator" content="Hugo 0.165.0">
 
 
 <link rel="canonical" href="http://localhost:1313/posts/picoctf_handoff/" >
@@ -137,14 +137,14 @@ Handoff | 0x3nigma
 <li>There is no protection against buffer overflow since it lacks a stack canary.</li>
 </ol>
 <p>From the above observations we can infer that we can inject and execute a shellcode. Now lets look at the source code:</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdio.h&gt;</span><span style="color:#75715e">
 </span></span></span><span style="display:flex;"><span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdlib.h&gt;</span><span style="color:#75715e">
 </span></span></span><span style="display:flex;"><span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;stdbool.h&gt;</span><span style="color:#75715e">
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span><span style="color:#75715e">#define MAX_ENTRIES 10
 </span></span></span><span style="display:flex;"><span><span style="color:#75715e">#define NAME_LEN 32
 </span></span></span><span style="display:flex;"><span><span style="color:#75715e">#define MSG_LEN 64
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span><span style="color:#66d9ef">typedef</span> <span style="color:#66d9ef">struct</span> entry {
 </span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">char</span> name[<span style="color:#ae81ff">8</span>];
 </span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">char</span> msg[<span style="color:#ae81ff">64</span>];
@@ -163,29 +163,29 @@ Handoff | 0x3nigma
 </span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">int</span> total_entries <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
 </span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">int</span> choice <span style="color:#f92672">=</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>;
 </span></span><span style="display:flex;"><span>	<span style="color:#75715e">// Have a menu that allows the user to write whatever they want to a set buffer elsewhere in memory
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>	<span style="color:#66d9ef">while</span> (true) {
+</span></span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">while</span> (true) {
 </span></span><span style="display:flex;"><span>		<span style="color:#a6e22e">print_menu</span>();
 </span></span><span style="display:flex;"><span>		<span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">scanf</span>(<span style="color:#e6db74">&#34;%d&#34;</span>, <span style="color:#f92672">&amp;</span>choice) <span style="color:#f92672">!=</span> <span style="color:#ae81ff">1</span>) <span style="color:#a6e22e">exit</span>(<span style="color:#ae81ff">0</span>);
 </span></span><span style="display:flex;"><span>		<span style="color:#a6e22e">getchar</span>(); <span style="color:#75715e">// Remove trailing \n
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span>		<span style="color:#75715e">// Add entry
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>		<span style="color:#66d9ef">if</span> (choice <span style="color:#f92672">==</span> <span style="color:#ae81ff">1</span>) {
+</span></span></span><span style="display:flex;"><span>		<span style="color:#66d9ef">if</span> (choice <span style="color:#f92672">==</span> <span style="color:#ae81ff">1</span>) {
 </span></span><span style="display:flex;"><span>			choice <span style="color:#f92672">=</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>;
 </span></span><span style="display:flex;"><span>			<span style="color:#75715e">// Check for max entries
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>			<span style="color:#66d9ef">if</span> (total_entries <span style="color:#f92672">&gt;=</span> MAX_ENTRIES) {
+</span></span></span><span style="display:flex;"><span>			<span style="color:#66d9ef">if</span> (total_entries <span style="color:#f92672">&gt;=</span> MAX_ENTRIES) {
 </span></span><span style="display:flex;"><span>				<span style="color:#a6e22e">puts</span>(<span style="color:#e6db74">&#34;Max recipients reached!&#34;</span>);
 </span></span><span style="display:flex;"><span>				<span style="color:#66d9ef">continue</span>;
 </span></span><span style="display:flex;"><span>			}
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span>			<span style="color:#75715e">// Add a new entry
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>			<span style="color:#a6e22e">puts</span>(<span style="color:#e6db74">&#34;What&#39;s the new recipient&#39;s name: &#34;</span>);
+</span></span></span><span style="display:flex;"><span>			<span style="color:#a6e22e">puts</span>(<span style="color:#e6db74">&#34;What&#39;s the new recipient&#39;s name: &#34;</span>);
 </span></span><span style="display:flex;"><span>			<span style="color:#a6e22e">fflush</span>(stdin);
 </span></span><span style="display:flex;"><span>			<span style="color:#a6e22e">fgets</span>(entries[total_entries].name, NAME_LEN, stdin);
 </span></span><span style="display:flex;"><span>			total_entries<span style="color:#f92672">++</span>;
 </span></span><span style="display:flex;"><span>			
 </span></span><span style="display:flex;"><span>		}
 </span></span><span style="display:flex;"><span>		<span style="color:#75715e">// Add message
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>		<span style="color:#66d9ef">else</span> <span style="color:#66d9ef">if</span> (choice <span style="color:#f92672">==</span> <span style="color:#ae81ff">2</span>) {
+</span></span></span><span style="display:flex;"><span>		<span style="color:#66d9ef">else</span> <span style="color:#66d9ef">if</span> (choice <span style="color:#f92672">==</span> <span style="color:#ae81ff">2</span>) {
 </span></span><span style="display:flex;"><span>			choice <span style="color:#f92672">=</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>;
 </span></span><span style="display:flex;"><span>			<span style="color:#a6e22e">puts</span>(<span style="color:#e6db74">&#34;Which recipient would you like to send a message to?&#34;</span>);
 </span></span><span style="display:flex;"><span>			<span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">scanf</span>(<span style="color:#e6db74">&#34;%d&#34;</span>, <span style="color:#f92672">&amp;</span>choice) <span style="color:#f92672">!=</span> <span style="color:#ae81ff">1</span>) <span style="color:#a6e22e">exit</span>(<span style="color:#ae81ff">0</span>);
@@ -215,7 +215,7 @@ Handoff | 0x3nigma
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span>() {
 </span></span><span style="display:flex;"><span>	<span style="color:#a6e22e">setvbuf</span>(stdout, NULL, _IONBF, <span style="color:#ae81ff">0</span>);  <span style="color:#75715e">// No buffering (immediate output)
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>	<span style="color:#a6e22e">vuln</span>();
+</span></span></span><span style="display:flex;"><span>	<span style="color:#a6e22e">vuln</span>();
 </span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
 </span></span><span style="display:flex;"><span>}
 </span></span></code></pre></div><p>Analyzing the source code we can see that there is a buffer overflow vulnerability in choice number 3 , that is the <code>feedback</code> buffer and choice number 1 that is <code>name</code> buffer since both of them can hold only 8 bytes but <code>NAME_LEN</code> is 32 bytes.</p>
@@ -238,7 +238,7 @@ Now we can craft a suitable exploit for this binary.</p>
 </ol>
 <p>We will also have to find the offset between the start of the feedback buffer and the start of the msg buffer so that we make the instruction pointer move to the main shellcode.</p>
 <h4 id="the-exploit-script">The exploit script</h4>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
 </span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> argparse
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span>parser <span style="color:#f92672">=</span> argparse<span style="color:#f92672">.</span>ArgumentParser()
@@ -306,7 +306,7 @@ Now we can craft a suitable exploit for this binary.</p>
         <footer class="footer">
     
         <span>
-            © 2025 0x3nigma, Built with
+            © 2026 0x3nigma, Built with
             <a href="https://gohugo.io" class="footerLink">Hugo</a> and
             <a href="https://github.com/LordMathis/hugo-theme-nightfall" class="footerLink">Nightfall</a> theme
         </span>
