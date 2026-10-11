@@ -334,7 +334,24 @@ the 4th least significant bit is normally set to 0 due to 16 byte alignment. Dur
 <p><img src="/Images/gdb1.png" alt="alt"></p>
 <p>As we can see that we have overwritten the <code>_IO_list_all ptr</code> with an address inside the main arena and now its
 <code>_chain ptr</code> points to a chunk we control.</p>
-<p>Now we will create a fake file stream in the chunk pointed by <code>_chain</code> and a fake vtable :</p>
+<p>Now we will create a fake file stream in the chunk pointed by <code>_chain</code> and a fake vtable. The fake filstream
+that we are creating should pass one of the buffer flushing checks so that the <code>__overflow</code> function entry be
+called. From the source code of <code>glibc_2.23</code> we can see that there are 2 buffer flushing checks and only one of
+them needs to pass to call the <code>__overflow</code> entry:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#66d9ef">if</span> (((fp<span style="color:#f92672">-&gt;</span>_mode <span style="color:#f92672">&lt;=</span> <span style="color:#ae81ff">0</span> <span style="color:#f92672">&amp;&amp;</span> fp<span style="color:#f92672">-&gt;</span>_IO_write_ptr <span style="color:#f92672">&gt;</span> fp<span style="color:#f92672">-&gt;</span>_IO_write_base)
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#if defined _LIBC || defined _GLIBCPP_USE_WCHAR_T
+</span></span></span><span style="display:flex;"><span>	   <span style="color:#f92672">||</span> (<span style="color:#a6e22e">_IO_vtable_offset</span> (fp) <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>
+</span></span><span style="display:flex;"><span>	       <span style="color:#f92672">&amp;&amp;</span> fp<span style="color:#f92672">-&gt;</span>_mode <span style="color:#f92672">&gt;</span> <span style="color:#ae81ff">0</span> <span style="color:#f92672">&amp;&amp;</span> (fp<span style="color:#f92672">-&gt;</span>_wide_data<span style="color:#f92672">-&gt;</span>_IO_write_ptr
+</span></span><span style="display:flex;"><span>				    <span style="color:#f92672">&gt;</span> fp<span style="color:#f92672">-&gt;</span>_wide_data<span style="color:#f92672">-&gt;</span>_IO_write_base))
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#endif
+</span></span></span><span style="display:flex;"><span>	   )
+</span></span><span style="display:flex;"><span>	  <span style="color:#f92672">&amp;&amp;</span> <span style="color:#a6e22e">_IO_OVERFLOW</span> (fp, EOF) <span style="color:#f92672">==</span> EOF)
+</span></span><span style="display:flex;"><span>	result <span style="color:#f92672">=</span> EOF;
+</span></span></code></pre></div><p>We will try to pass only the first buffer flushing check which needs to meet the following constraints:</p>
+<ol>
+<li>_mode &lt;= 0</li>
+<li>_IO_write_ptr &gt; _IO_write_base</li>
+</ol>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#75715e"># Now we are going to create the fake filestream at chunk_F which is being pointed to by the</span>
 </span></span><span style="display:flex;"><span><span style="color:#75715e"># _chain ptr.</span>
 </span></span><span style="display:flex;"><span>
@@ -503,7 +520,7 @@ the 4th least significant bit is normally set to 0 due to 16 byte alignment. Dur
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>interactive()
 </span></span></code></pre></div><h3 id="note">Note:</h3>
-<p>Our exploit is not 100% reliable. This is because of the reason how the <code>_mode</code> field of the fake filestream that overlaps the <code>main_arena</code> is formed. <code>_mode</code> is a 32 bit field and is formed by overlapping the least significant bytes of the 0xc0 smallbin.This results in its most significant bit that determines whether it&rsquo;s interpreted as positive or negative value or not is subject to ASLR. As a result sometimes if the <code>_mode</code> field is positive the fake file stream overlapping the main arena may pass the second buffer flushing check, leading to calling a corrupted <code>__overflow</code> entry leading to segfault.</p>
+<p>Our exploit is not 100% reliable. This is because of the reason how the <code>_mode</code> field of the fake filestream that overlaps the <code>main_arena</code> is formed. <code>_mode</code> is a 32 bit field and is formed by overlapping the least significant bytes of the 0xc0 smallbin.This results in its most significant bit that determines whether it&rsquo;s interpreted as positive or negative value or not is subject to ASLR. As a result sometimes if the <code>_mode</code> field is positive the fake file stream overlapping the main arena may pass the second buffer flushing check as shown in the above source code, leading to calling a corrupted <code>__overflow</code> entry leading to segfault.</p>
 
     </div>
 </div>

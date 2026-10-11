@@ -255,7 +255,26 @@ We get the follwing result now :
 As we can see that we have overwritten the `_IO_list_all ptr` with an address inside the main arena and now its
 `_chain ptr` points to a chunk we control.
 
-Now we will create a fake file stream in the chunk pointed by `_chain` and a fake vtable : 
+Now we will create a fake file stream in the chunk pointed by `_chain` and a fake vtable. The fake filstream
+that we are creating should pass one of the buffer flushing checks so that the `__overflow` function entry be 
+called. From the source code of `glibc_2.23` we can see that there are 2 buffer flushing checks and only one of
+them needs to pass to call the `__overflow` entry: 
+
+```c
+if (((fp->_mode <= 0 && fp->_IO_write_ptr > fp->_IO_write_base)
+#if defined _LIBC || defined _GLIBCPP_USE_WCHAR_T
+	   || (_IO_vtable_offset (fp) == 0
+	       && fp->_mode > 0 && (fp->_wide_data->_IO_write_ptr
+				    > fp->_wide_data->_IO_write_base))
+#endif
+	   )
+	  && _IO_OVERFLOW (fp, EOF) == EOF)
+	result = EOF;
+```
+
+We will try to pass only the first buffer flushing check which needs to meet the following constraints:
+1. _mode <= 0 
+2. _IO_write_ptr > _IO_write_base
 
 ```python
 # Now we are going to create the fake filestream at chunk_F which is being pointed to by the
@@ -439,5 +458,5 @@ io.interactive()
 ```
 
 ### Note: 
-Our exploit is not 100% reliable. This is because of the reason how the `_mode` field of the fake filestream that overlaps the `main_arena` is formed. `_mode` is a 32 bit field and is formed by overlapping the least significant bytes of the 0xc0 smallbin.This results in its most significant bit that determines whether it's interpreted as positive or negative value or not is subject to ASLR. As a result sometimes if the `_mode` field is positive the fake file stream overlapping the main arena may pass the second buffer flushing check, leading to calling a corrupted `__overflow` entry leading to segfault.
+Our exploit is not 100% reliable. This is because of the reason how the `_mode` field of the fake filestream that overlaps the `main_arena` is formed. `_mode` is a 32 bit field and is formed by overlapping the least significant bytes of the 0xc0 smallbin.This results in its most significant bit that determines whether it's interpreted as positive or negative value or not is subject to ASLR. As a result sometimes if the `_mode` field is positive the fake file stream overlapping the main arena may pass the second buffer flushing check as shown in the above source code, leading to calling a corrupted `__overflow` entry leading to segfault.
 
